@@ -1,0 +1,59 @@
+# Compiled object files
+*.o
+*.obj
+*.lo
+*.la
+*.al
+*.libs
+*.so
+*.so.*
+*.dll
+*.dylib
+*.a
+*.lib
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Executables and binaries
+*.exe
+*.out
+*.app
+*.elf
+
+# CMake build folders
+/build
+/build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+Testing/
+
+# Visual Studio Code
+.vscode/
+
+# CLion
+.idea/
+cmake-build-*/
+
+# Generated files
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Third-party dependencies (optional, if not vendored)
+# /third_party/
+
+# User-specific
+*.swp
+*.swo
+*~
+
+.github
+*.code-workspace
+*.txt

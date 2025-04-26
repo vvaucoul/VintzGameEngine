@@ -1,0 +1,319 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   Application.cpp                                    :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/04/26 11:19:09 by vvaucoul          #+#    #+#             */
+/*   Updated: 2025/04/27 00:04:53 by vvaucoul         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "Core/Application.h"
+#include "Renderer/Camera.h"
+#include "Renderer/MaterialPBR.h"
+#include "Renderer/Model.h"
+#include "Renderer/PostProcessor.h" // Make sure this is included
+#include "Renderer/Primitives.h"
+#include "Renderer/Shader.h"
+#include "Renderer/UniformBuffer.h"
+#include "World/Actor.h"
+#include "World/Components/DirectionalLightComponent.h" // Add include
+#include "World/Components/PointLightComponent.h"		// Add include
+#include "World/Components/SceneComponent.h"
+#include "World/Components/SpotLightComponent.h" // Add include
+#include "World/Components/StaticMeshComponent.h"
+#include "World/World.h"
+
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+#include <glad/glad.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <iostream>	 // Add iostream for std::cerr and std::endl
+#include <memory>	 // For std::unique_ptr
+#include <stdexcept> // Include for std::exception
+#include <vector>
+
+namespace Engine {
+
+	static GLFWwindow *s_Window							  = nullptr;
+	static Camera *s_Camera								  = nullptr;
+	static Shader *s_Shader								  = nullptr;
+	static UniformBuffer *s_UBO							  = nullptr;
+	static World *s_World								  = nullptr;
+	static std::unique_ptr<PostProcessor> s_PostProcessor = nullptr; // Declare as static unique_ptr
+
+	static bool s_FirstMouse	 = true;
+	static float s_LastX		 = 0.0f;
+	static float s_LastY		 = 0.0f;
+	static bool s_IsCameraActive = false; // Flag for RMB control
+
+	// Store primitive meshes to keep them alive
+	static std::vector<std::unique_ptr<Mesh>> s_PrimitiveMeshes;
+
+	static void FramebufferSizeCallback([[maybe_unused]] GLFWwindow *window, int width, int height) {
+		glViewport(0, 0, width, height);
+		if (s_Camera)
+			s_Camera->SetAspectRatio(float(width) / float(height));
+		// Optionally resize PostProcessor FBOs here if needed
+		// if (s_PostProcessor) s_PostProcessor->Resize(width, height);
+	}
+
+	static void MouseCallback(GLFWwindow * /*window*/, double xpos, double ypos) {
+		// Only process mouse look when camera is active (RMB held)
+		if (!s_IsCameraActive) {
+			// s_FirstMouse = true; // No longer needed here, handled in MouseButtonCallback
+			return;
+		}
+
+		if (s_FirstMouse) {
+			s_LastX		 = float(xpos);
+			s_LastY		 = float(ypos);
+			s_FirstMouse = false;
+			return;
+		}
+		float dx = float(xpos) - s_LastX;
+		float dy = s_LastY - float(ypos); // reversed since y-coordinates go from bottom to top
+		s_LastX	 = float(xpos);
+		s_LastY	 = float(ypos);
+
+		if (s_Camera) {
+			s_Camera->ProcessMouseMovement(dx, dy);
+		}
+	}
+
+	// New callback for mouse button events
+	static void MouseButtonCallback(GLFWwindow *window, int button, int action, int /*mods*/) {
+		if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+			if (action == GLFW_PRESS) {
+				s_IsCameraActive = true;
+				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Hide and capture cursor
+				s_FirstMouse = true;										 // Reset first mouse on click to avoid jump
+			} else if (action == GLFW_RELEASE) {
+				s_IsCameraActive = false;
+				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // Release cursor
+			}
+		}
+	}
+
+	Application::Application() = default;
+
+	Application::~Application() = default;
+
+	void Application::Run() {
+		Init();
+		MainLoop();
+		Shutdown();
+	}
+
+	void Application::Init() {
+		if (!glfwInit()) exit(EXIT_FAILURE);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+		// Define window dimensions (consider making these constants or members)
+		const unsigned int windowWidth	= 1280;
+		const unsigned int windowHeight = 720;
+
+		s_Window = glfwCreateWindow(windowWidth, windowHeight, "Vintz Game Engine", nullptr, nullptr);
+		if (!s_Window) exit(EXIT_FAILURE);
+		glfwMakeContextCurrent(s_Window);
+		glfwSetFramebufferSizeCallback(s_Window, FramebufferSizeCallback);
+		glfwSetCursorPosCallback(s_Window, MouseCallback);
+		glfwSetMouseButtonCallback(s_Window, MouseButtonCallback);
+		// glfwSetInputMode(s_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // Remove this line
+		glfwSetInputMode(s_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Start with cursor hidden and captured
+
+		if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) exit(EXIT_FAILURE);
+		glEnable(GL_DEPTH_TEST);
+
+		// Camera
+		s_Camera = new Camera({0.0f, 2.0f, 8.0f}, 45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
+
+		// Shader + UBO - Load PBR Shaders
+		s_Shader = new Shader("assets/shaders/pbr.vert", "assets/shaders/pbr.frag");
+		s_UBO	 = new UniformBuffer(sizeof(glm::mat4) * 2, 0);
+
+		// Initialize PostProcessor
+		s_PostProcessor = std::make_unique<Engine::PostProcessor>(windowWidth, windowHeight);
+
+		// World & Actors
+		s_World = new World();
+
+		// Create and store primitive meshes first
+		s_PrimitiveMeshes.push_back(Primitives::CreateSphere());   // Index 0
+		s_PrimitiveMeshes.push_back(Primitives::CreatePlane());	   // Index 1
+		s_PrimitiveMeshes.push_back(Primitives::CreateCylinder()); // Index 2
+		s_PrimitiveMeshes.push_back(Primitives::CreateCone());	   // Index 3
+		s_PrimitiveMeshes.push_back(Primitives::CreateTorus());	   // Index 4
+		s_PrimitiveMeshes.push_back(Primitives::CreateCube());	   // Index 5 (Added primitive cube)
+
+		// --- PBR Materials ---
+		// Dirt Material for the ground plane
+		auto dirtMat = std::make_shared<Engine::MaterialPBR>();
+		dirtMat->SetAlbedoMap("assets/textures/dirt/Dirt_Diffuse.png");
+		dirtMat->SetNormalMap("assets/textures/dirt/Dirt_Normal.png");
+		dirtMat->SetAOMap("assets/textures/dirt/Dirt_AmbientOcclusion.png");
+		dirtMat->metallic  = 0.05f;
+		dirtMat->roughness = 0.9f;
+
+		// Simple Metallic Material for the sphere
+		auto metalMat		  = std::make_shared<Engine::MaterialPBR>();
+		metalMat->albedoColor = {0.8f, 0.8f, 0.85f}; // Light grey albedo - Corrected member name
+		metalMat->metallic	  = 0.9f;
+		metalMat->roughness	  = 0.2f;
+		metalMat->ao		  = 1.0f;
+
+		// Simple Plastic Material for cone/cylinder
+		auto plasticMat			= std::make_shared<Engine::MaterialPBR>();
+		plasticMat->albedoColor = {0.8f, 0.1f, 0.1f}; // Red albedo - Corrected member name
+		plasticMat->metallic	= 0.05f;
+		plasticMat->roughness	= 0.4f;
+		plasticMat->ao			= 1.0f;
+
+		// --- Actor Setup ---
+		// Ground Plane (using Primitive) - Apply Dirt Material
+		auto &planeActor = s_World->SpawnActor();
+		planeActor.GetRootComponent()->SetPosition({0.0f, 0.0f, 0.0f});
+		planeActor.GetRootComponent()->SetScale({10.0f, 1.0f, 10.0f}); // Make plane larger
+		auto &planeMeshComp = planeActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[1].get());
+		planeMeshComp.SetMaterial(dirtMat);
+
+		// Cube (using Model)
+		auto &objActor = s_World->SpawnActor();
+		objActor.GetRootComponent()->SetPosition({-3.0f, 0.5f, -2.0f});
+		objActor.AddComponent<StaticMeshComponent>("assets/models/cube.obj");
+
+		// Sphere (using Primitive) - Apply Metallic Material
+		auto &sphereActor = s_World->SpawnActor();
+		sphereActor.GetRootComponent()->SetPosition({0.0f, 0.75f, 0.0f});
+		sphereActor.GetRootComponent()->SetScale({0.75f, 0.75f, 0.75f}); // Slightly smaller sphere
+		auto &sphereMeshComp = sphereActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[0].get());
+		sphereMeshComp.SetMaterial(metalMat);
+
+		// Cylinder (using Primitive) - Apply Plastic Material
+		auto &cylinderActor = s_World->SpawnActor();
+		cylinderActor.GetRootComponent()->SetPosition({3.0f, 0.5f, -1.0f});
+		auto &cylinderMeshComp = cylinderActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[2].get());
+		cylinderMeshComp.SetMaterial(plasticMat);
+
+		// Cone (using Primitive) - Apply Plastic Material
+		auto &coneActor = s_World->SpawnActor();
+		coneActor.GetRootComponent()->SetPosition({-1.5f, 0.5f, 2.5f});
+		auto &coneMeshComp = coneActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[3].get());
+		coneMeshComp.SetMaterial(plasticMat); // Use same plastic material
+
+		// Torus (using Primitive) - Default Material
+		auto &torusActor = s_World->SpawnActor();
+		torusActor.GetRootComponent()->SetPosition({2.0f, 0.5f, 2.0f});
+		torusActor.GetRootComponent()->SetRotation({0.0f, 45.0f, 0.0f});
+		torusActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[4].get());
+
+		// Crate 1 (using Model)
+		auto &crateActor1 = s_World->SpawnActor();
+		crateActor1.GetRootComponent()->SetPosition({-2.5f, 0.5f, 0.5f});
+		crateActor1.GetRootComponent()->SetRotation({0.0f, -30.0f, 0.0f});
+		crateActor1.AddComponent<StaticMeshComponent>("assets/models/crate.obj");
+
+		// Crate 2 (using Model)
+		auto &crateActor2 = s_World->SpawnActor();
+		crateActor2.GetRootComponent()->SetPosition({3.5f, 0.5f, 1.5f});
+		crateActor2.GetRootComponent()->SetRotation({0.0f, 60.0f, 0.0f});
+		crateActor2.GetRootComponent()->SetScale({1.2f, 1.2f, 1.2f}); // Slightly larger crate
+		crateActor2.AddComponent<StaticMeshComponent>("assets/models/crate.obj");
+
+		// Primitive Cube (using Primitive) - Default Material
+		auto &primCubeActor = s_World->SpawnActor();
+		primCubeActor.GetRootComponent()->SetPosition({0.5f, 0.5f, -3.0f});
+		primCubeActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[5].get());
+
+		// --- Lights ---
+		// Directional Light (Sun)
+		auto &sun = s_World->SpawnActor();
+		sun.GetRootComponent()->SetRotation({-60.0f, -30.0f, 0.0f});					  // Steeper angle, different direction
+		sun.AddComponent<DirectionalLightComponent>(glm::vec3(1.0f, 0.95f, 0.85f), 1.0f); // Slightly warmer, brighter
+
+		// Point Light (Bulb)
+		auto &bulb = s_World->SpawnActor();
+		bulb.GetRootComponent()->SetPosition({-1.0f, 2.0f, -1.0f});				   // Move bulb position
+		bulb.AddComponent<PointLightComponent>(glm::vec3(0.3f, 0.8f, 1.0f), 2.0f); // Cool blueish light
+
+		// Spot Light (Torch)
+		auto &torch = s_World->SpawnActor();
+		torch.GetRootComponent()->SetPosition({2.0f, 1.5f, 3.0f});								 // Move torch position
+		torch.GetRootComponent()->SetRotation({-30.0f, -60.0f, 0.0f});							 // Point torch differently
+		torch.AddComponent<SpotLightComponent>(glm::vec3(1.0f, 0.8f, 0.2f), 2.5f, 12.5f, 17.5f); // Warmer, adjust angles
+	}
+
+	void Application::MainLoop() {
+		float lastFrame = 0.0f;
+		while (!glfwWindowShouldClose(s_Window)) {
+			float current = float(glfwGetTime());
+			float delta	  = current - lastFrame; // Use 'delta' consistently
+			lastFrame	  = current;
+
+			// Process keyboard input regardless of mouse state
+			bool forward  = glfwGetKey(s_Window, GLFW_KEY_W) == GLFW_PRESS;
+			bool backward = glfwGetKey(s_Window, GLFW_KEY_S) == GLFW_PRESS;
+			bool left	  = glfwGetKey(s_Window, GLFW_KEY_A) == GLFW_PRESS;
+			bool right	  = glfwGetKey(s_Window, GLFW_KEY_D) == GLFW_PRESS;
+			bool up		  = glfwGetKey(s_Window, GLFW_KEY_E) == GLFW_PRESS;
+			bool down	  = glfwGetKey(s_Window, GLFW_KEY_Q) == GLFW_PRESS;
+			if (s_Camera) {
+				s_Camera->ProcessKeyboard(delta, forward, backward, left, right, up, down);
+			}
+			// Note: Mouse input (rotation) is handled in MouseCallback, which already checks s_IsCameraActive
+
+			// Clear buffers (moved inside PostProcessor::Render or done before it)
+			// glClearColor(0.05f, 0.05f, 0.08f, 1.0f);
+			// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clearing is now handled by PostProcessor stages
+
+			// Update UBO view & projection matrices
+			glm::mat4 proj = s_Camera->GetProjectionMatrix();
+			glm::mat4 view = s_Camera->GetViewMatrix();
+			s_UBO->SetData(0, sizeof(glm::mat4), &proj[0][0]);
+			s_UBO->SetData(sizeof(glm::mat4), sizeof(glm::mat4), &view[0][0]); // Offset by proj size
+
+			// World update & render via PostProcessor
+			s_PostProcessor->Render([&]() {
+				// This lambda renders the scene to the HDR FBO
+
+				// Bind the main PBR shader for scene rendering
+				s_Shader->Bind();
+				if (s_Camera) {
+					s_Shader->SetUniformVec3("u_ViewPos", s_Camera->GetPosition());
+				}
+				// UBO is already updated outside the lambda
+
+				// Tick and Render the world using static variables
+				s_World->Tick(delta); // Pass delta time
+				s_World->Render(*s_Shader, *s_Camera);
+
+				// Unbind shader if necessary (though PostProcessor might bind others)
+				// s_Shader->Unbind();
+			});
+
+			// Reset active texture unit (good practice after post-processing)
+			glActiveTexture(GL_TEXTURE0);
+
+			glfwSwapBuffers(s_Window);
+			glfwPollEvents();
+		}
+	}
+
+	void Application::Shutdown() {
+		s_PostProcessor.reset(); // Release PostProcessor before other resources
+		delete s_World;
+		delete s_UBO;
+		delete s_Shader;
+		delete s_Camera;
+		s_PrimitiveMeshes.clear(); // Release primitive meshes
+		glfwDestroyWindow(s_Window);
+		glfwTerminate();
+	}
+
+} // namespace Engine
