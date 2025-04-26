@@ -57,3 +57,5 @@ Thumbs.db
 .github
 *.code-workspace
 *.txt
+
+bin

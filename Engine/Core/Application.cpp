@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:19:09 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 00:04:53 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 01:07:41 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,9 @@
 #include "World/Components/SpotLightComponent.h" // Add include
 #include "World/Components/StaticMeshComponent.h"
 #include "World/World.h"
+
+// Core Plugins
+#include "CorePlugins/DynamicModule.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -53,6 +56,8 @@ namespace Engine {
 
 	// Store primitive meshes to keep them alive
 	static std::vector<std::unique_ptr<Mesh>> s_PrimitiveMeshes;
+	// Add: storage for loaded plugins
+	static std::vector<std::unique_ptr<DynamicModule>> s_Plugins;
 
 	static void FramebufferSizeCallback([[maybe_unused]] GLFWwindow *window, int width, int height) {
 		glViewport(0, 0, width, height);
@@ -110,6 +115,11 @@ namespace Engine {
 	}
 
 	void Application::Init() {
+		// Initialize the core plugins
+		// DynamicModule plugin("plugins/MyPlugin/libMyPlugin.so");
+		// plugin.load();
+		// plugin.Init(engineContext);
+
 		if (!glfwInit()) exit(EXIT_FAILURE);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
@@ -247,6 +257,18 @@ namespace Engine {
 		torch.GetRootComponent()->SetPosition({2.0f, 1.5f, 3.0f});								 // Move torch position
 		torch.GetRootComponent()->SetRotation({-30.0f, -60.0f, 0.0f});							 // Point torch differently
 		torch.AddComponent<SpotLightComponent>(glm::vec3(1.0f, 0.8f, 0.2f), 2.5f, 12.5f, 17.5f); // Warmer, adjust angles
+
+		// --- Initialize Plugins ---
+		std::cout << "[INFO] Loading TestPlugin..." << std::endl;
+		auto testMod = std::make_unique<DynamicModule>("./bin/plugins/libHelloPlugin.so");
+		if (testMod->Load()) {
+			std::cout << "[INFO] Loaded TestPlugin: " << testMod->GetPath() << std::endl;
+			if (testMod->InitFunction)
+				testMod->InitFunction(nullptr);
+			s_Plugins.push_back(std::move(testMod));
+		} else {
+			std::cerr << "[ERROR] Failed to load plugins/libHelloPlugin.so" << std::endl;
+		}
 	}
 
 	void Application::MainLoop() {
@@ -297,6 +319,12 @@ namespace Engine {
 				// s_Shader->Unbind();
 			});
 
+			// Update plugins each frame
+			for (auto &mod : s_Plugins) {
+				if (mod->IsLoaded() && mod->UpdateFunction)
+					mod->UpdateFunction(delta);
+			}
+
 			// Reset active texture unit (good practice after post-processing)
 			glActiveTexture(GL_TEXTURE0);
 
@@ -306,6 +334,10 @@ namespace Engine {
 	}
 
 	void Application::Shutdown() {
+		// Unload plugins (DynamicModule dtor calls ShutdownFunction + dlclose)
+		std::cout << "[INFO] Unloading plugins..." << std::endl;
+		s_Plugins.clear();
+
 		s_PostProcessor.reset(); // Release PostProcessor before other resources
 		delete s_World;
 		delete s_UBO;
