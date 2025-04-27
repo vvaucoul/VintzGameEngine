@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:19:09 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 12:10:13 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 15:47:24 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -205,13 +205,12 @@ namespace Engine {
 
 		// --- PBR Materials ---
 		// Dirt Material for the ground plane
-		auto dirtMat = std::make_shared<Engine::MaterialPBR>();
-		dirtMat->SetAlbedoMap("assets/textures/dirt/Dirt_Diffuse.png");
-		dirtMat->SetNormalMap("assets/textures/dirt/Dirt_Normal.png");
-		dirtMat->SetAOMap("assets/textures/dirt/Dirt_AmbientOcclusion.png");
-		dirtMat->SetSpecularMap("assets/textures/dirt/Dirt_Specular.png");
-		dirtMat->metallic  = 0.05f;
-		dirtMat->roughness = 0.9f;
+		auto worldMaterial = std::make_shared<Engine::MaterialPBR>();
+		worldMaterial->SetAlbedoMap("assets/textures/World_Diffuse.png");
+		worldMaterial->SetNormalMap("assets/textures/World_Normal.png");
+		worldMaterial->metallic	 = 0.2f;
+		worldMaterial->roughness = 0.75f;
+		worldMaterial->ao		 = 1.0f;
 
 		// Simple Metallic Material for the sphere
 		auto metalMat		  = std::make_shared<Engine::MaterialPBR>();
@@ -234,7 +233,7 @@ namespace Engine {
 		planeActor.GetRootComponent()->SetPosition({0.0f, 0.0f, 0.0f});
 		planeActor.GetRootComponent()->SetScale({10.0f, 1.0f, 10.0f}); // Make plane larger
 		auto &planeMeshComp = planeActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[1].get());
-		// planeMeshComp.SetMaterial(dirtMat);
+		planeMeshComp.SetMaterial(worldMaterial);
 
 		// Cube (using Model)
 		auto &objActor = s_World->SpawnActor();

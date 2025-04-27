@@ -6,7 +6,7 @@
 #    By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/04/27 00:53:13 by vvaucoul          #+#    #+#              #
-#    Updated: 2025/04/27 00:59:41 by vvaucoul         ###   ########.fr        #
+#    Updated: 2025/04/27 15:48:28 by vvaucoul         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -19,6 +19,10 @@ BIN_DIR    := $(ROOT_DIR)/bin
 ENGINE_DIR := $(ROOT_DIR)/Engine
 PLUGINS_DIR:= $(ROOT_DIR)/Plugins
 PLUGIN_DIRS:= $(wildcard $(PLUGINS_DIR)/*)
+
+# Parallel build jobs
+NPROC      := $(shell nproc)
+MAKEFLAGS  += -j$(NPROC)
 
 # Final binary name
 BIN_NAME   := VintzGameEngine
@@ -60,9 +64,11 @@ fclean:
 	@for dir in $(PLUGIN_DIRS); do \
 		$(MAKE) -s -C $$dir fclean; \
 	done
+	@echo "[INFO] Fclean complete." # Added fclean completion message
 
 re: fclean all
 
 run: all
 	@echo "[INFO] Running $(BIN_NAME)..."
 	@LD_LIBRARY_PATH=$(BIN_DIR)/plugins:$$LD_LIBRARY_PATH $(BIN)
+
