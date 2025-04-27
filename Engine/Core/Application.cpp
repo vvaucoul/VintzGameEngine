@@ -6,63 +6,70 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:19:09 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 15:47:24 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 22:55:29 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
+
+// Application.cpp — Main application entry point and loop for VintzGameEngine.
+// Handles window creation, OpenGL context, camera, world, plugins, and main loop.
 
 #include "Core/Application.h"
 #include "Renderer/Camera.h"
 #include "Renderer/MaterialPBR.h"
 #include "Renderer/Model.h"
-#include "Renderer/PostProcessor.h" // Make sure this is included
+#include "Renderer/PostProcessor.h"
 #include "Renderer/Primitives.h"
 #include "Renderer/Shader.h"
-#include "Renderer/ShadowMap.h" // Add include for ShadowMap
+#include "Renderer/ShadowMap.h"
 #include "Renderer/UniformBuffer.h"
 #include "World/Actor.h"
-#include "World/Components/DirectionalLightComponent.h" // Add include
-#include "World/Components/LightComponent.h"			// Include base light component
-#include "World/Components/PointLightComponent.h"		// Add include
+#include "World/Components/DirectionalLightComponent.h"
+#include "World/Components/LightComponent.h"
+#include "World/Components/PointLightComponent.h"
 #include "World/Components/SceneComponent.h"
-#include "World/Components/SpotLightComponent.h" // Add include
+#include "World/Components/SpotLightComponent.h"
 #include "World/Components/StaticMeshComponent.h"
 #include "World/World.h"
 
-// Core Plugins
+// Core Plugins (dynamic module loading for plugins)
 #include "CorePlugins/DynamicModule.h"
 
+// OpenGL and windowing includes
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <algorithm> // Include algorithm for std::find_if
-#include <iostream>	 // Add iostream for std::cerr and std::endl
-#include <memory>	 // For std::unique_ptr
-#include <stdexcept> // Include for std::exception
+// STL includes
+#include <algorithm>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
 #include <vector>
 
 namespace Engine {
 
+	// Static variables for the application
 	static GLFWwindow *s_Window							  = nullptr;
 	static Camera *s_Camera								  = nullptr;
 	static Shader *s_Shader								  = nullptr;
 	static UniformBuffer *s_UBO							  = nullptr;
 	static World *s_World								  = nullptr;
-	static std::unique_ptr<PostProcessor> s_PostProcessor = nullptr; // Declare as static unique_ptr
-	static std::unique_ptr<Engine::ShadowMap> s_ShadowMap = nullptr; // Moved declaration
-	static std::unique_ptr<Engine::Shader> s_DepthShader  = nullptr; // Moved declaration
-
-	static bool s_FirstMouse	 = true;
-	static float s_LastX		 = 0.0f;
-	static float s_LastY		 = 0.0f;
-	static bool s_IsCameraActive = false; // Flag for RMB control
+	static std::unique_ptr<PostProcessor> s_PostProcessor = nullptr;
+	static std::unique_ptr<Engine::ShadowMap> s_ShadowMap = nullptr;
+	static std::unique_ptr<Engine::Shader> s_DepthShader  = nullptr;
 
 	// Store primitive meshes to keep them alive
 	static std::vector<std::unique_ptr<Mesh>> s_PrimitiveMeshes;
 	// Add: storage for loaded plugins
 	static std::vector<std::unique_ptr<DynamicModule>> s_Plugins;
+
+	// Static variables for mouse input handling
+	static bool s_FirstMouse	 = true;
+	static float s_LastX		 = 0.0f;
+	static float s_LastY		 = 0.0f;
+	static bool s_IsCameraActive = false;
 
 	static void FramebufferSizeCallback([[maybe_unused]] GLFWwindow *window, int width, int height) {
 		glViewport(0, 0, width, height);
@@ -177,7 +184,7 @@ namespace Engine {
 
 		// Shader + UBO - Load PBR Shaders
 		// Update paths to Core directory
-		s_Shader = new Shader("assets/shaders/Core/pbr.vert", "assets/shaders/Core/pbr.frag");
+		s_Shader = new Shader("Shaders/Core/pbr.vert", "Shaders/Core/pbr.frag");
 		s_UBO	 = new UniformBuffer(sizeof(glm::mat4) * 2, 0);
 
 		// Initialize PostProcessor
@@ -189,8 +196,8 @@ namespace Engine {
 		// Initialize Depth Shader
 		// Update paths to Core directory
 		s_DepthShader = std::make_unique<Engine::Shader>(
-			"assets/shaders/Core/depth.vert",
-			"assets/shaders/Core/depth.frag");
+			"Shaders/Core/depth.vert",
+			"Shaders/Core/depth.frag");
 
 		// World & Actors
 		s_World = new World();

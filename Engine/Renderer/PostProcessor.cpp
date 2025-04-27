@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/27 00:01:23 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 01:55:44 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 22:47:24 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,12 +38,12 @@ namespace Engine {
 
 		// 3) Charger les shaders
 		// Update paths to PostProcess directory
-		m_BloomExtractShader = std::make_unique<Shader>("assets/shaders/PostProcess/bloom_extract.vert",
-														"assets/shaders/PostProcess/bloom_extract.frag");
-		m_GaussianBlurShader = std::make_unique<Shader>("assets/shaders/PostProcess/blur.vert",
-														"assets/shaders/PostProcess/blur.frag");
-		m_FinalShader		 = std::make_unique<Shader>("assets/shaders/PostProcess/final.vert",
-													"assets/shaders/PostProcess/final.frag");
+		m_BloomExtractShader = std::make_unique<Shader>("Shaders/PostProcess/bloom_extract.vert",
+														"Shaders/PostProcess/bloom_extract.frag");
+		m_GaussianBlurShader = std::make_unique<Shader>("Shaders/PostProcess/blur.vert",
+														"Shaders/PostProcess/blur.frag");
+		m_FinalShader		 = std::make_unique<Shader>("Shaders/PostProcess/final.vert",
+													"Shaders/PostProcess/final.frag");
 
 		initRenderData();
 	}
