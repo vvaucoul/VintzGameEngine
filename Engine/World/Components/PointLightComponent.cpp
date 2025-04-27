@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 20:26:06 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 01:51:39 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 23:24:51 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,8 +18,12 @@
 
 namespace Engine {
 
-	PointLightComponent::PointLightComponent(Actor *owner, const glm::vec3 &color, float intensity, float constant, float linear, float quadratic)
+	PointLightComponent::PointLightComponent(Actor *owner, const glm::vec3 &color, float intensity, float attenuationRadius, float sourceRadius, float softSourceRadius, float sourceLength, float constant, float linear, float quadratic)
 		: LightComponent(owner, color, intensity), // Call base class constructor
+		  m_AttenuationRadius(attenuationRadius),  // Init new member
+		  m_SourceRadius(sourceRadius),			   // Init new member
+		  m_SoftSourceRadius(softSourceRadius),	   // Init new member
+		  m_SourceLength(sourceLength),			   // Init new member
 		  m_Constant(constant),
 		  m_Linear(linear),
 		  m_Quadratic(quadratic) {
@@ -35,6 +39,11 @@ namespace Engine {
 		shader.SetUniformFloat(baseName + ".constant", m_Constant);
 		shader.SetUniformFloat(baseName + ".linear", m_Linear);
 		shader.SetUniformFloat(baseName + ".quadratic", m_Quadratic);
+		// Set new uniforms
+		shader.SetUniformFloat(baseName + ".attenuationRadius", m_AttenuationRadius);
+		shader.SetUniformFloat(baseName + ".sourceRadius", m_SourceRadius);
+		shader.SetUniformFloat(baseName + ".softSourceRadius", m_SoftSourceRadius);
+		shader.SetUniformFloat(baseName + ".sourceLength", m_SourceLength);
 	}
 
 } // namespace Engine

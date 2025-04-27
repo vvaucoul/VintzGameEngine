@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:19:09 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 22:55:29 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 23:27:21 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -303,6 +303,7 @@ namespace Engine {
 		bulb.GetRootComponent()->SetPosition({-1.0f, 2.0f, -1.0f});
 		// Use the PointLightComponent constructor directly
 		bulb.AddComponent<PointLightComponent>(glm::vec3(0.3f, 0.8f, 1.0f), 2.0f); // Default attenuation used
+		bulb.GetComponentsByClass<PointLightComponent>()[0]->SetIntensity(8.0f);   // Set intensity
 
 		// Spot Light (Torch)
 		auto &torch = s_World->SpawnActor();

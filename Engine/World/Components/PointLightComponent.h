@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 20:26:02 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 01:51:39 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 23:26:48 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,8 @@
 #include "LightComponent.h" // Include the new base class
 
 namespace Engine {
+
+	class Shader; // Forward declare Shader
 
 	/**
 	 * @class PointLightComponent
@@ -27,16 +29,25 @@ namespace Engine {
 		 * @param owner The Actor that owns this component.
 		 * @param color The color of the light. Default is white.
 		 * @param intensity The brightness of the light. Default is 1.0.
+		 * @param attenuationRadius Max distance the light affects. Default is 1000.0f.
+		 * @param sourceRadius Radius of the light source sphere (for area lights/soft shadows). Default is 0.0f.
+		 * @param softSourceRadius Controls shadow penumbra softness. Default is 0.0f.
+		 * @param sourceLength Length for capsule lights. Default is 0.0f.
 		 * @param constant Attenuation constant factor. Default is 1.0.
 		 * @param linear Attenuation linear factor. Default is 0.09.
 		 * @param quadratic Attenuation quadratic factor. Default is 0.032.
 		 */
 		PointLightComponent(Actor *owner,
-							const glm::vec3 &color = glm::vec3(1.0f),
-							float intensity		   = 1.0f,
-							float constant		   = 1.0f,
-							float linear		   = 0.09f,
-							float quadratic		   = 0.032f);
+							const glm::vec3 &color	= glm::vec3(1.0f),
+							float intensity			= 1.0f,
+							float attenuationRadius = 10.0f, // Added default
+							float sourceRadius		= 0.0f,	 // Added default
+							float softSourceRadius	= 0.0f,	 // Added default
+							float sourceLength		= 0.0f,	 // Added default
+							float constant			= 1.0f,	 // Default attenuation
+							float linear			= 0.09f, // Default attenuation
+							float quadratic			= 0.032f // Default attenuation
+		);
 
 		/**
 		 * @brief Sets up the point light uniforms in the shader array.
@@ -46,18 +57,29 @@ namespace Engine {
 		void SetupUniforms(Shader &shader, int index) const override;
 
 		// --- Getters ---
+		float GetAttenuationRadius() const { return m_AttenuationRadius; }
+		float GetSourceRadius() const { return m_SourceRadius; }
+		float GetSoftSourceRadius() const { return m_SoftSourceRadius; }
+		float GetSourceLength() const { return m_SourceLength; }
 		float GetConstant() const { return m_Constant; }
 		float GetLinear() const { return m_Linear; }
 		float GetQuadratic() const { return m_Quadratic; }
 
 		// --- Setters ---
+		void SetAttenuationRadius(float radius) { m_AttenuationRadius = radius; }
+		void SetSourceRadius(float radius) { m_SourceRadius = radius; }
+		void SetSoftSourceRadius(float radius) { m_SoftSourceRadius = radius; }
+		void SetSourceLength(float length) { m_SourceLength = length; }
 		void SetConstant(float constant) { m_Constant = constant; }
 		void SetLinear(float linear) { m_Linear = linear; }
 		void SetQuadratic(float quadratic) { m_Quadratic = quadratic; }
 
-		// Color and Intensity are inherited
-
 	private:
+		// Reordered to match constructor initializer list in .cpp
+		float m_AttenuationRadius;
+		float m_SourceRadius;
+		float m_SoftSourceRadius;
+		float m_SourceLength;
 		float m_Constant;
 		float m_Linear;
 		float m_Quadratic;
