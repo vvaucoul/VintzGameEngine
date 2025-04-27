@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:26:19 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/26 13:27:52 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 10:57:31 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,11 +30,12 @@ namespace Engine {
 	}
 
 	void Actor::Tick(float deltaTime) {
-		// Update root (if needed)
-		m_RootComponent->Tick(deltaTime);
-		// Update all other components
-		for (auto &comp : m_Components)
-			comp->Tick(deltaTime);
+		// Tick all components (including the root component implicitly via GetComponents)
+		for (ActorComponent *comp : GetComponents()) {
+			if (comp) { // Basic null check
+				comp->Tick(deltaTime);
+			}
+		}
 	}
 
 } // namespace Engine

@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:24:56 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 01:53:47 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 10:54:18 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,14 +14,14 @@
 #include "Renderer/Camera.h"
 #include "Renderer/Shader.h"
 #include "World/Actor.h"
-#include "World/Components/DirectionalLightComponent.h" // Include Directional Light
-#include "World/Components/PointLightComponent.h"		// Include Point Light
-#include "World/Components/SceneComponent.h"			// Add this include
+#include "World/Components/DirectionalLightComponent.h"
+#include "World/Components/PointLightComponent.h"
+#include "World/Components/SceneComponent.h"
 #include "World/Components/SpotLightComponent.h"
 #include "World/Components/StaticMeshComponent.h"
-#include <algorithm> // For std::find_if
+#include <algorithm>
 #include <iostream>
-#include <vector> // Ensure vector is included
+#include <vector>
 
 namespace Engine {
 
@@ -31,6 +31,10 @@ namespace Engine {
 
 	World::~World() = default;
 
+	/**
+	 * @brief Spawns a new Actor in the world.
+	 * @return Reference to the newly created Actor.
+	 */
 	Actor &World::SpawnActor() {
 		auto actor = std::make_unique<Actor>(m_NextID++, this);
 		Actor &ref = *actor;
@@ -38,37 +42,49 @@ namespace Engine {
 		return ref;
 	}
 
+	/**
+	 * @brief Updates all actors in the world.
+	 * @param deltaTime Time elapsed since last frame (in seconds).
+	 */
 	void World::Tick(float deltaTime) {
 		for (auto &actor : m_Actors) {
 			actor->Tick(deltaTime);
 		}
 	}
 
-	void World::Render(Shader &shader) { // Remove const Camera& camera parameter
+	/**
+	 * @brief Renders all visible actors and sets up lighting uniforms.
+	 * @param shader The shader used for rendering meshes and lighting.
+	 *
+	 * Iterates over all actors to:
+	 *   - Setup uniforms for all light components (directional, point, spot).
+	 *   - Render all StaticMeshComponents.
+	 * The number of active lights is passed to the shader for correct array indexing.
+	 */
+	void World::Render(Shader &shader) {
 		// --- Light Setup ---
-		int pointLightCount = 0;
-		int spotLightCount	= 0;
-		// Define maximums (should match shader)
-		const int MAX_POINT_LIGHTS = 4;
-		const int MAX_SPOT_LIGHTS  = 4; // Ensure this matches shader define
+		int pointLightCount		   = 0;
+		int spotLightCount		   = 0;
+		const int MAX_POINT_LIGHTS = 4; // Must match shader definition
+		const int MAX_SPOT_LIGHTS  = 4; // Must match shader definition
 
-		// Iterate through all actors to find light components
+		// Iterate through all actors to find and setup light components
 		for (const auto &actor : m_Actors) {
-			// Check for Directional Light (only one supported for now)
+			// Directional Light (only one supported for now)
 			auto dirLight = actor->GetComponent<DirectionalLightComponent>();
 			if (dirLight) {
-				dirLight->SetupUniforms(shader, 0); // Index 0 is arbitrary here
-													// Found the directional light, potentially break if only one is expected
+				dirLight->SetupUniforms(shader, 0); // Index 0 for single directional light
+													// Only one directional light is supported; break if needed
 			}
 
-			// Check for Point Lights
+			// Point Lights
 			auto pointLight = actor->GetComponent<PointLightComponent>();
 			if (pointLight && pointLightCount < MAX_POINT_LIGHTS) {
 				pointLight->SetupUniforms(shader, pointLightCount);
 				pointLightCount++;
 			}
 
-			// Check for Spot Lights
+			// Spot Lights
 			auto spotLight = actor->GetComponent<SpotLightComponent>();
 			if (spotLight && spotLightCount < MAX_SPOT_LIGHTS) {
 				spotLight->SetupUniforms(shader, spotLightCount);
@@ -76,12 +92,12 @@ namespace Engine {
 			}
 		}
 
-		// Set the number of active lights in the shader
+		// Pass the number of active lights to the shader
 		shader.SetUniformInt("numPointLights", pointLightCount);
-		shader.SetUniformInt("numSpotLights", spotLightCount); // Uncomment this line
+		shader.SetUniformInt("numSpotLights", spotLightCount);
 
 		// --- Render Static Meshes ---
-		// Iterate through actors and render their StaticMeshComponents
+		// Render all StaticMeshComponents in the world
 		for (const auto &actor : m_Actors) {
 			auto meshComp = actor->GetComponent<StaticMeshComponent>();
 			if (meshComp) {
@@ -90,18 +106,26 @@ namespace Engine {
 		}
 	}
 
+	/**
+	 * @brief Renders depth information for all static meshes (for shadow mapping).
+	 * @param depthShader The shader used for depth rendering.
+	 *
+	 * Sets the model matrix uniform for each mesh before rendering.
+	 */
 	void World::RenderDepth(Shader &depthShader) {
 		for (auto &actor : m_Actors) {
-			// Find StaticMeshComponent within the actor
 			auto meshComp = actor->GetComponent<StaticMeshComponent>();
 			if (meshComp) {
-				// Set the model matrix uniform for the depth shader
-				depthShader.SetUniformMat4("model", actor->GetRootComponent()->GetWorldTransform()); // This line should now compile
+				// Set the model matrix for the current actor
+				depthShader.SetUniformMat4("model", actor->GetRootComponent()->GetWorldTransform());
 				meshComp->RenderDepth(depthShader);
 			}
 		}
 	}
 
+	/**
+	 * @brief Returns a const reference to the list of actors in the world.
+	 */
 	const std::vector<std::unique_ptr<Actor>> &World::GetActors() const {
 		return m_Actors;
 	}

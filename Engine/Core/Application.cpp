@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:19:09 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 02:15:56 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 12:10:13 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -135,16 +135,40 @@ namespace Engine {
 		const unsigned int windowWidth	= 1280;
 		const unsigned int windowHeight = 720;
 
+		// Get primary monitor and its video mode
+		GLFWmonitor *primaryMonitor = glfwGetPrimaryMonitor();
+		const GLFWvidmode *mode		= glfwGetVideoMode(primaryMonitor);
+
+		if (!mode) {
+			std::cerr << "[ERROR] Failed to get primary monitor video mode." << std::endl;
+			glfwTerminate();
+			exit(EXIT_FAILURE);
+		}
+
+		// Calculate window position for centering
+		int windowPosX = (mode->width - windowWidth) / 2;
+		int windowPosY = (mode->height - windowHeight) / 2;
+
+		// Create the window (initially potentially not centered)
 		s_Window = glfwCreateWindow(windowWidth, windowHeight, "Vintz Game Engine", nullptr, nullptr);
-		if (!s_Window) exit(EXIT_FAILURE);
+		if (!s_Window) {
+			glfwTerminate(); // Terminate GLFW before exiting
+			exit(EXIT_FAILURE);
+		}
+
+		// Set the calculated window position to center it
+		glfwSetWindowPos(s_Window, windowPosX, windowPosY);
+
 		glfwMakeContextCurrent(s_Window);
 		glfwSetFramebufferSizeCallback(s_Window, FramebufferSizeCallback);
 		glfwSetCursorPosCallback(s_Window, MouseCallback);
 		glfwSetMouseButtonCallback(s_Window, MouseButtonCallback);
-		// glfwSetInputMode(s_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // Remove this line
 		glfwSetInputMode(s_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Start with cursor hidden and captured
 
-		if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) exit(EXIT_FAILURE);
+		if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+			glfwTerminate(); // Terminate GLFW before exiting
+			exit(EXIT_FAILURE);
+		}
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_MULTISAMPLE); // Enable MSAA
 
@@ -185,6 +209,7 @@ namespace Engine {
 		dirtMat->SetAlbedoMap("assets/textures/dirt/Dirt_Diffuse.png");
 		dirtMat->SetNormalMap("assets/textures/dirt/Dirt_Normal.png");
 		dirtMat->SetAOMap("assets/textures/dirt/Dirt_AmbientOcclusion.png");
+		dirtMat->SetSpecularMap("assets/textures/dirt/Dirt_Specular.png");
 		dirtMat->metallic  = 0.05f;
 		dirtMat->roughness = 0.9f;
 
@@ -194,6 +219,7 @@ namespace Engine {
 		metalMat->metallic	  = 0.9f;
 		metalMat->roughness	  = 0.2f;
 		metalMat->ao		  = 1.0f;
+		metalMat->specular	  = 0.5f; // Added specular property
 
 		// Simple Plastic Material for cone/cylinder
 		auto plasticMat			= std::make_shared<Engine::MaterialPBR>();
@@ -264,6 +290,7 @@ namespace Engine {
 		sun.GetRootComponent()->SetRotation({-60.0f, -30.0f, 0.0f});
 		// Use the DirectionalLightComponent constructor directly
 		sun.AddComponent<DirectionalLightComponent>(glm::vec3(1.0f, 0.95f, 0.85f), 1.0f);
+		sun.GetComponentsByClass<DirectionalLightComponent>()[0]->SetIntensity(2.0f); // Set intensity
 
 		// Point Light (Bulb)
 		auto &bulb = s_World->SpawnActor();

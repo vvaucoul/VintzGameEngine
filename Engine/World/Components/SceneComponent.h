@@ -6,12 +6,13 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:15:01 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 01:52:47 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 12:01:35 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
+#include "Core/Reflection/ReflectionMacros.h" // Include reflection macros
 #include "World/ActorComponent.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -21,6 +22,7 @@
 namespace Engine {
 
 	class SceneComponent : public ActorComponent {
+		DECLARE_REFLECTABLE(SceneComponent) // Add reflection declaration
 	public:
 		SceneComponent(Actor *owner);
 		~SceneComponent() override;

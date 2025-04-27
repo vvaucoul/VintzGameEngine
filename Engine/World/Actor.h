@@ -6,21 +6,25 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:27:39 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/26 13:27:41 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 10:58:23 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
+#include <algorithm> // Include for std::transform
 #include <memory>
 #include <type_traits>
 #include <vector>
+
+// Include the full definition instead of forward declaring
+#include "World/Components/SceneComponent.h"
 
 namespace Engine {
 
 	class World;
 	class ActorComponent;
-	class SceneComponent;
+	// No longer need to forward declare SceneComponent here
 
 	class Actor {
 	public:
@@ -36,17 +40,70 @@ namespace Engine {
 			auto comp = std::make_unique<T>(this, std::forward<Args>(args)...);
 			T &ref	  = *comp;
 			m_Components.push_back(std::move(comp));
+			// If the added component is a SceneComponent and not the root, attach it to the root by default
+			if constexpr (std::is_base_of<SceneComponent, T>::value) {
+				if (static_cast<SceneComponent *>(&ref) != m_RootComponent.get()) {
+					// TODO: Uncomment this line after adding AttachToComponent(SceneComponent* parent) method to SceneComponent class.
+					// static_cast<SceneComponent *>(&ref)->AttachToComponent(m_RootComponent.get());
+				}
+			}
 			return ref;
 		}
 
-		// Get the first component of type T attached to this Actor
+		// Get the first component of type T attached to this Actor (UE: GetComponentByClass)
 		template <typename T>
 		T *GetComponent() const {
+			static_assert(std::is_base_of<ActorComponent, T>::value, "T must derive from ActorComponent");
 			for (auto &comp : m_Components) {
-				if (auto ptr = dynamic_cast<T *>(comp.get()))
+				if (auto ptr = dynamic_cast<T *>(comp.get())) {
 					return ptr;
+				}
+			}
+			// Also check the root component if it's the requested type
+			if (auto rootPtr = dynamic_cast<T *>(m_RootComponent.get())) {
+				return rootPtr;
 			}
 			return nullptr;
+		}
+
+		// Get all components of type T attached to this Actor (UE: GetComponentsByClass)
+		template <typename T>
+		std::vector<T *> GetComponentsByClass() const {
+			static_assert(std::is_base_of<ActorComponent, T>::value, "T must derive from ActorComponent");
+			std::vector<T *> result;
+			// Check owned components
+			for (const auto &comp : m_Components) {
+				if (T *ptr = dynamic_cast<T *>(comp.get())) {
+					result.push_back(ptr);
+				}
+			}
+			// Check root component separately if it matches the type T
+			// (Avoid double-adding if root is also in m_Components, though it shouldn't be)
+			if (T *rootPtr = dynamic_cast<T *>(m_RootComponent.get())) {
+				// Ensure we don't add the root if it was somehow already added (unlikely)
+				bool alreadyAdded = false;
+				for (const auto *existingPtr : result) {
+					if (existingPtr == rootPtr) {
+						alreadyAdded = true;
+						break;
+					}
+				}
+				if (!alreadyAdded) {
+					result.push_back(rootPtr);
+				}
+			}
+			return result;
+		}
+
+		// Get all components attached to this Actor (UE: GetComponents)
+		std::vector<ActorComponent *> GetComponents() const {
+			std::vector<ActorComponent *> result;
+			result.reserve(m_Components.size() + 1); // Reserve space for owned + root
+			// Add the root component first, casting it to the base type
+			result.push_back(static_cast<ActorComponent *>(m_RootComponent.get()));
+			// Add pointers to owned components
+			std::transform(m_Components.begin(), m_Components.end(), std::back_inserter(result), [](const std::unique_ptr<ActorComponent> &comp) { return comp.get(); });
+			return result;
 		}
 
 		// Access the root SceneComponent (transform & hierarchy)

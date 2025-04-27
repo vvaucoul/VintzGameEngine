@@ -53,5 +53,6 @@ Thumbs.db
 *.code-workspace
 *.txt
 
-bin
-bin/VintzGameEngine
+/bin
+/bin-*/
+/bin/*

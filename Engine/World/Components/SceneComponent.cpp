@@ -6,16 +6,32 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:28:15 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 01:52:47 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 12:04:49 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "World/Components/SceneComponent.h"
+#include "Core/Reflection/ReflectionMacros.h" // Ensure macros are included
+#include "Core/Reflection/ReflectionRegistry.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/quaternion.hpp>
 
+// Explicitly specialize GetTypeName for SceneComponent within the correct namespace
+namespace Engine::Reflection {
+	template <>
+	const char *ReflectionRegistry::GetTypeName<Engine::SceneComponent>() { return "SceneComponent"; }
+} // namespace Engine::Reflection
+
 namespace Engine {
+
+	// Use reflection macros instead of manual registration
+	BEGIN_DEFINE_TYPE(SceneComponent)
+	// Pass ClassName to DEFINE_FIELD
+	DEFINE_FIELD(SceneComponent, m_Position)
+	DEFINE_FIELD(SceneComponent, m_Rotation)
+	DEFINE_FIELD(SceneComponent, m_Scale)
+	END_DEFINE_TYPE(SceneComponent)
 
 	SceneComponent::SceneComponent(Actor *owner)
 		: ActorComponent(owner), m_Position(0.0f), m_Rotation(0.0f), m_Scale(1.0f), m_Parent(nullptr) {

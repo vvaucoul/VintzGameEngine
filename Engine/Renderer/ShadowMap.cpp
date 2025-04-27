@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/27 01:14:42 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 01:43:47 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 11:12:25 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -57,7 +57,7 @@ namespace Engine {
 		float near_plane = 1.0f, far_plane = 25.0f;
 		float orthoSize		= 10.0f;
 		glm::mat4 lightProj = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, near_plane, far_plane);
-		glm::mat4 lightView = glm::lookAt(-lightDir * 10.0f, // position de la lumière
+		glm::mat4 lightView = glm::lookAt(-lightDir * 10.0f,
 										  glm::vec3(0.0f),
 										  glm::vec3(0, 1, 0));
 		lightSpaceMatrix	= lightProj * lightView;
