@@ -6,11 +6,12 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:28:15 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/26 14:12:45 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 01:52:47 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "World/Components/SceneComponent.h"
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/quaternion.hpp>
 
@@ -60,6 +61,16 @@ namespace Engine {
 		if (m_Parent)
 			return m_Parent->GetWorldTransform() * GetLocalTransform();
 		return GetLocalTransform();
+	}
+
+	glm::vec3 SceneComponent::GetWorldPosition() const {
+		return glm::vec3(GetWorldTransform()[3]);
+	}
+
+	glm::quat SceneComponent::GetWorldRotationQuat() const {
+		glm::quat parentRotation = (m_Parent) ? m_Parent->GetWorldRotationQuat() : glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+		glm::quat localRotation	 = glm::quat(glm::radians(m_Rotation));
+		return parentRotation * localRotation;
 	}
 
 	void SceneComponent::Tick(float deltaTime) {

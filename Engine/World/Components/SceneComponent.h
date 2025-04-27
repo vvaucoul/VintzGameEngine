@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:15:01 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/26 14:12:45 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 01:52:47 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,7 @@
 #include "World/ActorComponent.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp> // Include for quaternion
 #include <vector>
 
 namespace Engine {
@@ -36,6 +37,8 @@ namespace Engine {
 		// Get transforms
 		glm::mat4 GetLocalTransform() const;
 		glm::mat4 GetWorldTransform() const;
+		glm::vec3 GetWorldPosition() const;
+		glm::quat GetWorldRotationQuat() const; // Add this declaration
 
 		// Apply a full transform (decomposed into position, rotation, scale)
 		void SetTransform(const glm::mat4 &transform);
@@ -50,6 +53,8 @@ namespace Engine {
 
 		SceneComponent *m_Parent;
 		std::vector<SceneComponent *> m_Children;
+
+		void UpdateWorldTransform();
 	};
 
 } // namespace Engine

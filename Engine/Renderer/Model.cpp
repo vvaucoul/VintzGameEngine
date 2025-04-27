@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/27 00:49:21 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 00:54:27 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 01:43:02 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,41 +46,42 @@ namespace Engine {
 				// Albedo map or color
 				if (sub.material->hasAlbedoMap && sub.material->albedoMap) {
 					sub.material->albedoMap->Bind(0);
-					shader.SetUniformInt("albedoMap", 0);
-					shader.SetUniformInt("hasAlbedoMap", 1);
+					shader.SetUniformInt("u_AlbedoMap", 0);	   // Use u_ prefix
+					shader.SetUniformInt("u_HasAlbedoMap", 1); // Use u_ prefix
 				} else {
-					shader.SetUniformInt("hasAlbedoMap", 0);
-					shader.SetUniformVec3("albedoColor", sub.material->albedoColor);
+					shader.SetUniformInt("u_HasAlbedoMap", 0);						   // Use u_ prefix
+					shader.SetUniformVec3("u_AlbedoColor", sub.material->albedoColor); // Use u_ prefix
 				}
 				// Normal map
 				if (sub.material->hasNormalMap && sub.material->normalMap) {
 					sub.material->normalMap->Bind(1);
-					shader.SetUniformInt("normalMap", 1);
-					shader.SetUniformInt("hasNormalMap", 1);
+					shader.SetUniformInt("u_NormalMap", 1);	   // Use u_ prefix
+					shader.SetUniformInt("u_HasNormalMap", 1); // Use u_ prefix
 				} else {
-					shader.SetUniformInt("hasNormalMap", 0);
+					shader.SetUniformInt("u_HasNormalMap", 0); // Use u_ prefix
 				}
 				// Ambient Occlusion map
 				if (sub.material->hasAOMap && sub.material->aoMap) {
-					sub.material->aoMap->Bind(2);
-					shader.SetUniformInt("aoMap", 2);
-					shader.SetUniformInt("hasAoMap", 1);
+					// Bind AO map to texture unit 3 (as decided previously)
+					sub.material->aoMap->Bind(3);
+					shader.SetUniformInt("u_AOMap", 3);	   // Use u_ prefix and correct unit
+					shader.SetUniformInt("u_HasAOMap", 1); // Use u_ prefix and correct name
 				} else {
-					shader.SetUniformInt("hasAoMap", 0);
+					shader.SetUniformInt("u_HasAOMap", 0); // Use u_ prefix and correct name
 				}
 				// PBR factors
-				shader.SetUniformFloat("metallic", sub.material->metallic);
-				shader.SetUniformFloat("roughness", sub.material->roughness);
-				shader.SetUniformFloat("ao", sub.material->ao);
+				shader.SetUniformFloat("u_Metallic", sub.material->metallic);	// Use u_ prefix
+				shader.SetUniformFloat("u_Roughness", sub.material->roughness); // Use u_ prefix
+				shader.SetUniformFloat("u_AO", sub.material->ao);				// Use u_ prefix
 			} else {
 				// Fallback to default material values
-				shader.SetUniformInt("hasAlbedoMap", 0);
-				shader.SetUniformVec3("albedoColor", {0.8f, 0.8f, 0.8f});
-				shader.SetUniformInt("hasNormalMap", 0);
-				shader.SetUniformInt("hasAoMap", 0);
-				shader.SetUniformFloat("metallic", 0.1f);
-				shader.SetUniformFloat("roughness", 0.8f);
-				shader.SetUniformFloat("ao", 1.0f);
+				shader.SetUniformInt("u_HasAlbedoMap", 0);					// Use u_ prefix
+				shader.SetUniformVec3("u_AlbedoColor", {0.8f, 0.8f, 0.8f}); // Use u_ prefix
+				shader.SetUniformInt("u_HasNormalMap", 0);					// Use u_ prefix
+				shader.SetUniformInt("u_HasAOMap", 0);						// Use u_ prefix and correct name
+				shader.SetUniformFloat("u_Metallic", 0.1f);					// Use u_ prefix
+				shader.SetUniformFloat("u_Roughness", 0.8f);				// Use u_ prefix
+				shader.SetUniformFloat("u_AO", 1.0f);						// Use u_ prefix
 			}
 			// Draw mesh geometry
 			sub.mesh->Draw();

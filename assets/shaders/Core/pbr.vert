@@ -3,11 +3,14 @@
 layout(location = 0) in vec3 a_Position;
 layout(location = 1) in vec3 a_Normal;
 layout(location = 2) in vec2 a_TexCoords;
+// Assuming tangent is at location 3 if available
+// layout(location = 3) in vec3 a_Tangent;
 
 out vec3 FragPos;
 out vec3 Normal;
 out vec2 TexCoords;
 out mat3 TBN;
+out vec4 FragPosLightSpace; // Added: Output for shadow calculation
 
 layout(std140, binding = 0) uniform Matrices {
     mat4 u_Projection;
@@ -15,6 +18,7 @@ layout(std140, binding = 0) uniform Matrices {
 };
 
 uniform mat4 u_Model;
+uniform mat4 lightSpaceMatrix; // Added: For shadow calculation
 
 void main() {
     // Calculate world position
@@ -43,6 +47,9 @@ void main() {
 
     // Pass texture coordinates
     TexCoords = a_TexCoords;
+
+    // Calculate fragment position in light space for shadow mapping
+    FragPosLightSpace = lightSpaceMatrix * worldPos; // Added
 
     // Calculate final clip space position
     gl_Position = u_Projection * u_View * worldPos;

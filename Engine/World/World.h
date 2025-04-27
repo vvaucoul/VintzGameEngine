@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:15:18 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/26 23:31:34 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 01:52:47 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,7 +34,13 @@ namespace Engine {
 		void Tick(float deltaTime);
 
 		// Render all actors that have StaticMeshComponent
-		void Render(Shader &shader, Camera &camera);
+		void Render(Shader &shader);
+
+		// Render depth for shadow mapping
+		void RenderDepth(Shader &depthShader);
+
+		// Getters
+		const std::vector<std::unique_ptr<Actor>> &GetActors() const;
 
 	private:
 		std::vector<std::unique_ptr<Actor>> m_Actors;

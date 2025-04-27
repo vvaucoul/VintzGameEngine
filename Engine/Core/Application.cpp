@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:19:09 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 01:07:41 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 02:08:49 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,9 +17,11 @@
 #include "Renderer/PostProcessor.h" // Make sure this is included
 #include "Renderer/Primitives.h"
 #include "Renderer/Shader.h"
+#include "Renderer/ShadowMap.h" // Add include for ShadowMap
 #include "Renderer/UniformBuffer.h"
 #include "World/Actor.h"
 #include "World/Components/DirectionalLightComponent.h" // Add include
+#include "World/Components/LightComponent.h"			// Include base light component
 #include "World/Components/PointLightComponent.h"		// Add include
 #include "World/Components/SceneComponent.h"
 #include "World/Components/SpotLightComponent.h" // Add include
@@ -35,6 +37,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <algorithm> // Include algorithm for std::find_if
 #include <iostream>	 // Add iostream for std::cerr and std::endl
 #include <memory>	 // For std::unique_ptr
 #include <stdexcept> // Include for std::exception
@@ -48,6 +51,8 @@ namespace Engine {
 	static UniformBuffer *s_UBO							  = nullptr;
 	static World *s_World								  = nullptr;
 	static std::unique_ptr<PostProcessor> s_PostProcessor = nullptr; // Declare as static unique_ptr
+	static std::unique_ptr<Engine::ShadowMap> s_ShadowMap = nullptr; // Moved declaration
+	static std::unique_ptr<Engine::Shader> s_DepthShader  = nullptr; // Moved declaration
 
 	static bool s_FirstMouse	 = true;
 	static float s_LastX		 = 0.0f;
@@ -145,11 +150,21 @@ namespace Engine {
 		s_Camera = new Camera({0.0f, 2.0f, 8.0f}, 45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
 
 		// Shader + UBO - Load PBR Shaders
-		s_Shader = new Shader("assets/shaders/pbr.vert", "assets/shaders/pbr.frag");
+		// Update paths to Core directory
+		s_Shader = new Shader("assets/shaders/Core/pbr.vert", "assets/shaders/Core/pbr.frag");
 		s_UBO	 = new UniformBuffer(sizeof(glm::mat4) * 2, 0);
 
 		// Initialize PostProcessor
 		s_PostProcessor = std::make_unique<Engine::PostProcessor>(windowWidth, windowHeight);
+
+		// Initialize ShadowMap
+		s_ShadowMap = std::make_unique<Engine::ShadowMap>(2048, 2048);
+
+		// Initialize Depth Shader
+		// Update paths to Core directory
+		s_DepthShader = std::make_unique<Engine::Shader>(
+			"assets/shaders/Core/depth.vert",
+			"assets/shaders/Core/depth.frag");
 
 		// World & Actors
 		s_World = new World();
@@ -191,7 +206,7 @@ namespace Engine {
 		planeActor.GetRootComponent()->SetPosition({0.0f, 0.0f, 0.0f});
 		planeActor.GetRootComponent()->SetScale({10.0f, 1.0f, 10.0f}); // Make plane larger
 		auto &planeMeshComp = planeActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[1].get());
-		planeMeshComp.SetMaterial(dirtMat);
+		// planeMeshComp.SetMaterial(dirtMat);
 
 		// Cube (using Model)
 		auto &objActor = s_World->SpawnActor();
@@ -244,19 +259,22 @@ namespace Engine {
 		// --- Lights ---
 		// Directional Light (Sun)
 		auto &sun = s_World->SpawnActor();
-		sun.GetRootComponent()->SetRotation({-60.0f, -30.0f, 0.0f});					  // Steeper angle, different direction
-		sun.AddComponent<DirectionalLightComponent>(glm::vec3(1.0f, 0.95f, 0.85f), 1.0f); // Slightly warmer, brighter
+		sun.GetRootComponent()->SetRotation({-60.0f, -30.0f, 0.0f});
+		// Use the DirectionalLightComponent constructor directly
+		sun.AddComponent<DirectionalLightComponent>(glm::vec3(1.0f, 0.95f, 0.85f), 1.0f);
 
 		// Point Light (Bulb)
 		auto &bulb = s_World->SpawnActor();
-		bulb.GetRootComponent()->SetPosition({-1.0f, 2.0f, -1.0f});				   // Move bulb position
-		bulb.AddComponent<PointLightComponent>(glm::vec3(0.3f, 0.8f, 1.0f), 2.0f); // Cool blueish light
+		bulb.GetRootComponent()->SetPosition({-1.0f, 2.0f, -1.0f});
+		// Use the PointLightComponent constructor directly
+		bulb.AddComponent<PointLightComponent>(glm::vec3(0.3f, 0.8f, 1.0f), 2.0f); // Default attenuation used
 
 		// Spot Light (Torch)
 		auto &torch = s_World->SpawnActor();
-		torch.GetRootComponent()->SetPosition({2.0f, 1.5f, 3.0f});								 // Move torch position
-		torch.GetRootComponent()->SetRotation({-30.0f, -60.0f, 0.0f});							 // Point torch differently
-		torch.AddComponent<SpotLightComponent>(glm::vec3(1.0f, 0.8f, 0.2f), 2.5f, 12.5f, 17.5f); // Warmer, adjust angles
+		torch.GetRootComponent()->SetPosition({2.0f, 1.5f, 3.0f});
+		torch.GetRootComponent()->SetRotation({-30.0f, -60.0f, 0.0f});
+		// Use the SpotLightComponent constructor directly
+		torch.AddComponent<SpotLightComponent>(glm::vec3(1.0f, 0.8f, 0.2f), 2.5f, 12.5f, 17.5f); // Default attenuation used
 
 		// --- Initialize Plugins ---
 		std::cout << "[INFO] Loading TestPlugin..." << std::endl;
@@ -300,36 +318,61 @@ namespace Engine {
 			s_UBO->SetData(0, sizeof(glm::mat4), &proj[0][0]);
 			s_UBO->SetData(sizeof(glm::mat4), sizeof(glm::mat4), &view[0][0]); // Offset by proj size
 
-			// World update & render via PostProcessor
-			s_PostProcessor->Render([&]() {
-				// This lambda renders the scene to the HDR FBO
-
-				// Bind the main PBR shader for scene rendering
-				s_Shader->Bind();
-				if (s_Camera) {
-					s_Shader->SetUniformVec3("u_ViewPos", s_Camera->GetPosition());
+			// --- Shadow Mapping Pass ---
+			// 1) Compute light space matrix based on the directional light
+			glm::vec3 lightDir = glm::vec3(-0.2f, -1.0f, -0.3f); // Default direction
+			auto sunActor	   = std::find_if(
+				 s_World->GetActors().begin(),
+				 s_World->GetActors().end(),
+				 [](const auto &a) { return a->template GetComponent<DirectionalLightComponent>() != nullptr; });
+			if (sunActor != s_World->GetActors().end()) {
+				auto dirLightComp = (*sunActor)->template GetComponent<DirectionalLightComponent>();
+				if (dirLightComp) {
+					lightDir = dirLightComp->GetDirection(); // Use the GetDirection method
 				}
-				// UBO is already updated outside the lambda
-
-				// Tick and Render the world using static variables
-				s_World->Tick(delta); // Pass delta time
-				s_World->Render(*s_Shader, *s_Camera);
-
-				// Unbind shader if necessary (though PostProcessor might bind others)
-				// s_Shader->Unbind();
-			});
-
-			// Update plugins each frame
-			for (auto &mod : s_Plugins) {
-				if (mod->IsLoaded() && mod->UpdateFunction)
-					mod->UpdateFunction(delta);
 			}
+			s_ShadowMap->ComputeLightSpaceMatrix(lightDir); // Pass the retrieved or default direction
 
-			// Reset active texture unit (good practice after post-processing)
+			// 2) Render scene to depth map
+			s_ShadowMap->BindForWriting();
+			glViewport(0, 0, 2048, 2048); // Set viewport to shadow map size
+			glClear(GL_DEPTH_BUFFER_BIT);
+			s_DepthShader->Bind();
+			s_DepthShader->SetUniformMat4("lightSpaceMatrix", s_ShadowMap->GetLightSpaceMatrix());
+			s_World->RenderDepth(*s_DepthShader);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind shadow FBO
+
+			// Reset viewport to window size
+			int display_w, display_h;
+			glfwGetFramebufferSize(s_Window, &display_w, &display_h);
+			glViewport(0, 0, display_w, display_h);
+
+			glClearColor(0.05f, 0.05f, 0.08f, 1.0f); // Clear default framebuffer
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glEnable(GL_DEPTH_TEST); // Ensure depth test is enabled
+
+			s_Shader->Bind(); // Bind PBR shader
+			if (s_Camera) {
+				s_Shader->SetUniformVec3("u_ViewPos", s_Camera->GetPosition());
+			}
+			// UBO is already updated
+
+			// Bind shadow map for reading
+			s_ShadowMap->BindForReading(GL_TEXTURE4);
+			s_Shader->SetUniformInt("shadowMap", 4);
+			s_Shader->SetUniformMat4("lightSpaceMatrix", s_ShadowMap->GetLightSpaceMatrix());
+
+			// Tick and Render the world using static variables
+			s_World->Tick(delta);
+			s_World->Render(*s_Shader); // Render world directly
+
+			// Reset active texture unit (good practice)
 			glActiveTexture(GL_TEXTURE0);
 
 			glfwSwapBuffers(s_Window);
 			glfwPollEvents();
+
+			// exit(0);
 		}
 	}
 
@@ -339,6 +382,8 @@ namespace Engine {
 		s_Plugins.clear();
 
 		s_PostProcessor.reset(); // Release PostProcessor before other resources
+		s_ShadowMap.reset();	 // Release ShadowMap
+		s_DepthShader.reset();	 // Release Depth Shader
 		delete s_World;
 		delete s_UBO;
 		delete s_Shader;

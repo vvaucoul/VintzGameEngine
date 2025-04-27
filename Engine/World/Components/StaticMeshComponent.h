@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:14:42 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/26 22:54:15 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 01:19:35 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,6 +34,7 @@ namespace Engine {
 		~StaticMeshComponent() override;
 
 		void Render(Shader &shader);
+		void RenderDepth(Shader &depthShader);
 		void SetMaterial(std::shared_ptr<MaterialPBR> material);
 
 	private:

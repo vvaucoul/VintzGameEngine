@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:24:56 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/26 23:50:29 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 01:53:47 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,7 +16,11 @@
 #include "World/Actor.h"
 #include "World/Components/DirectionalLightComponent.h" // Include Directional Light
 #include "World/Components/PointLightComponent.h"		// Include Point Light
+#include "World/Components/SceneComponent.h"			// Add this include
+#include "World/Components/SpotLightComponent.h"
 #include "World/Components/StaticMeshComponent.h"
+#include <algorithm> // For std::find_if
+#include <iostream>
 #include <vector> // Ensure vector is included
 
 namespace Engine {
@@ -40,48 +44,66 @@ namespace Engine {
 		}
 	}
 
-	void World::Render(Shader &shader, [[maybe_unused]] Camera &camera) { // Mark camera unused for now
-		shader.Bind();													  // Ensure shader is bound before setting uniforms
+	void World::Render(Shader &shader) { // Remove const Camera& camera parameter
+		// --- Light Setup ---
+		int pointLightCount = 0;
+		int spotLightCount	= 0;
+		// Define maximums (should match shader)
+		const int MAX_POINT_LIGHTS = 4;
+		const int MAX_SPOT_LIGHTS  = 4; // Ensure this matches shader define
 
-		// Apply all DirectionalLightComponents
-		for (auto &actor : m_Actors) {
+		// Iterate through all actors to find light components
+		for (const auto &actor : m_Actors) {
+			// Check for Directional Light (only one supported for now)
 			auto dirLight = actor->GetComponent<DirectionalLightComponent>();
 			if (dirLight) {
-				dirLight->Apply(shader);
-				// Optimization: Assume only one directional light for now
-				// break;
+				dirLight->SetupUniforms(shader, 0); // Index 0 is arbitrary here
+													// Found the directional light, potentially break if only one is expected
 			}
-		}
 
-		// Collect and apply all PointLightComponents
-		std::vector<PointLightComponent *> pointLights;
-		for (auto &actor : m_Actors) {
+			// Check for Point Lights
 			auto pointLight = actor->GetComponent<PointLightComponent>();
-			if (pointLight) {
-				pointLights.push_back(pointLight);
+			if (pointLight && pointLightCount < MAX_POINT_LIGHTS) {
+				pointLight->SetupUniforms(shader, pointLightCount);
+				pointLightCount++;
+			}
+
+			// Check for Spot Lights
+			auto spotLight = actor->GetComponent<SpotLightComponent>();
+			if (spotLight && spotLightCount < MAX_SPOT_LIGHTS) {
+				spotLight->SetupUniforms(shader, spotLightCount);
+				spotLightCount++;
 			}
 		}
-		// Limit the number of point lights sent to the shader if needed
-		// const int MAX_POINT_LIGHTS = 4; // Example limit
-		// int numLightsToSend = std::min((int)pointLights.size(), MAX_POINT_LIGHTS);
-		int numLightsToSend = static_cast<int>(pointLights.size());
-		shader.SetUniformInt("numPointLights", numLightsToSend);
-		for (int i = 0; i < numLightsToSend; ++i) {
-			pointLights[i]->Apply(shader, i);
+
+		// Set the number of active lights in the shader
+		shader.SetUniformInt("numPointLights", pointLightCount);
+		shader.SetUniformInt("numSpotLights", spotLightCount); // Uncomment this line
+
+		// --- Render Static Meshes ---
+		// Iterate through actors and render their StaticMeshComponents
+		for (const auto &actor : m_Actors) {
+			auto meshComp = actor->GetComponent<StaticMeshComponent>();
+			if (meshComp) {
+				meshComp->Render(shader);
+			}
 		}
+	}
 
-		// Assume UBO for viewProjection is already set up externally
-		// Set view position uniform (needed for specular lighting)
-		// shader.SetUniformVec3("u_ViewPos", camera.GetPosition()); // Requires GetPosition() in Camera
-
+	void World::RenderDepth(Shader &depthShader) {
 		for (auto &actor : m_Actors) {
-			// Render only if actor has a StaticMeshComponent
-			auto sm = actor->GetComponent<StaticMeshComponent>();
-			if (sm)
-				sm->Render(shader); // Shader is already bound here
+			// Find StaticMeshComponent within the actor
+			auto meshComp = actor->GetComponent<StaticMeshComponent>();
+			if (meshComp) {
+				// Set the model matrix uniform for the depth shader
+				depthShader.SetUniformMat4("model", actor->GetRootComponent()->GetWorldTransform()); // This line should now compile
+				meshComp->RenderDepth(depthShader);
+			}
 		}
-		// Shader should be unbound after all rendering using it is done,
-		// likely outside this function in Application::MainLoop
+	}
+
+	const std::vector<std::unique_ptr<Actor>> &World::GetActors() const {
+		return m_Actors;
 	}
 
 } // namespace Engine

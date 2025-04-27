@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:28:37 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/26 23:50:52 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/27 01:47:34 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,7 +63,6 @@ namespace Engine {
 
 			// Bind AO (Separate Map - Unit 3)
 			// Note: ORM map (Unit 2) is not handled here as MaterialPBR only has separate AO.
-			shader.SetUniformInt("u_HasORMMap", 0); // Explicitly state no ORM map from this component
 			if (m_Material->hasAOMap && m_Material->aoMap) {
 				m_Material->aoMap->Bind(3);			// Bind separate AO to Unit 3
 				shader.SetUniformInt("u_AOMap", 3); // Tell shader to use texture unit 3
@@ -93,7 +92,6 @@ namespace Engine {
 				shader.SetUniformInt("u_HasAlbedoMap", 0);					// No texture
 				shader.SetUniformVec3("u_AlbedoColor", {0.8f, 0.8f, 0.8f}); // Default to grey
 				shader.SetUniformInt("u_HasNormalMap", 0);					// No normal map
-				shader.SetUniformInt("u_HasORMMap", 0);						// No ORM map
 				shader.SetUniformInt("u_HasAOMap", 0);						// No separate AO map
 				shader.SetUniformFloat("u_Metallic", 0.1f);					// Default model: slightly metallic
 				shader.SetUniformFloat("u_Roughness", 0.8f);				// Default model: quite rough
@@ -109,7 +107,6 @@ namespace Engine {
 				shader.SetUniformInt("u_HasAlbedoMap", 0);					// No texture for basic primitives
 				shader.SetUniformVec3("u_AlbedoColor", {1.0f, 1.0f, 1.0f}); // Default to white
 				shader.SetUniformInt("u_HasNormalMap", 0);					// No normal map
-				shader.SetUniformInt("u_HasORMMap", 0);						// No ORM map
 				shader.SetUniformInt("u_HasAOMap", 0);						// No separate AO map
 				shader.SetUniformFloat("u_Metallic", 0.0f);					// Default primitive: non-metallic
 				shader.SetUniformFloat("u_Roughness", 0.5f);				// Default primitive: mid-roughness
@@ -118,6 +115,24 @@ namespace Engine {
 			// Draw the primitive mesh geometry
 			m_Mesh->Draw(); // Mesh::Draw binds VAO and calls glDrawElements. Shader is already bound.
 		}
+	}
+
+	void StaticMeshComponent::RenderDepth([[maybe_unused]] Shader &depthShader) {
+		// Get world transform from owner's root component
+		glm::mat4 modelMatrix = GetOwner()->GetRootComponent()->GetWorldTransform();
+		// Set the model matrix uniform for the depth shader
+		// Use the correct uniform name "model" as defined in depth.vert
+		depthShader.SetUniformMat4("model", modelMatrix);
+
+		// We just need to draw the geometry.
+		if (m_Model) {
+			// If we have a model, draw its geometry using the depth shader
+			m_Model->DrawGeometry(depthShader);
+		} else if (m_Mesh) {
+			// If we have a primitive mesh, draw it
+			m_Mesh->Draw(); // Mesh::Draw binds VAO/IBO and calls glDrawElements
+		}
+		// If both are null, do nothing.
 	}
 
 	void StaticMeshComponent::SetMaterial(std::shared_ptr<MaterialPBR> material) {
