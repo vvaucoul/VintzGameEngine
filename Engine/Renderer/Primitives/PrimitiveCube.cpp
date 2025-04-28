@@ -6,89 +6,102 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/28 10:30:00 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 10:25:08 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 15:08:56 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "Renderer/Mesh.h" // Include Mesh definition
+#include "Renderer/Mesh.h"
 #include "Renderer/Primitives/Primitives.h"
-#include <memory> // Include memory for unique_ptr
-#include <vector> // Include vector for vertex/index storage
+#include <memory>
+#include <vector>
 
 namespace Engine {
 
+	// Generates a unit cube centered at the origin with per-face normals, tangents, and UVs.
+	// Each face uses unique vertices for correct shading and texturing.
 	std::unique_ptr<Mesh> Primitives::CreateCube() {
-		// Cube requires vertex duplication for correct per-face normals/tangents/uvs
 		std::vector<Vertex> vertices = {
-			// Back face (-Z) Tangent: +X, Bitangent: -Y
+			// Back face (-Z)
 			{{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, -1.0f, 0.0f}},
 			{{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, -1.0f, 0.0f}},
 			{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, -1.0f, 0.0f}},
 			{{-0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, -1.0f, 0.0f}},
 
-			// Front face (+Z) Tangent: -X, Bitangent: -Y
+			// Front face (+Z)
 			{{-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, -1.0f, 0.0f}},
 			{{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, -1.0f, 0.0f}},
 			{{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, -1.0f, 0.0f}},
 			{{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, -1.0f, 0.0f}},
 
-			// Left face (-X) Tangent: -Z, Bitangent: -Y
+			// Left face (-X)
 			{{-0.5f, 0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, -1.0f, 0.0f}},
 			{{-0.5f, 0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, -1.0f, 0.0f}},
 			{{-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, -1.0f, 0.0f}},
 			{{-0.5f, -0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, -1.0f, 0.0f}},
 
-			// Right face (+X) Tangent: +Z, Bitangent: -Y
+			// Right face (+X)
 			{{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, -1.0f, 0.0f}},
 			{{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, -1.0f, 0.0f}},
 			{{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, -1.0f, 0.0f}},
 			{{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, -1.0f, 0.0f}},
 
-			// Bottom face (-Y) Tangent: +X, Bitangent: +Z
+			// Bottom face (-Y)
 			{{-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
 			{{0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
 			{{0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
 			{{-0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
 
-			// Top face (+Y) Tangent: +X, Bitangent: -Z
+			// Top face (+Y)
 			{{-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},
 			{{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},
 			{{0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},
-			{{-0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}}};
+			{{-0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},
+		};
 
+		// Each face is two triangles (6 indices per face)
 		std::vector<unsigned int> indices = {
-			0, 1, 2, 2, 3, 0, // Back
+			// Back
+			0,
+			1,
+			2,
+			2,
+			3,
+			0,
+			// Front
 			4,
-			6,
 			5,
 			6,
+			6,
+			7,
 			4,
-			7, // Front
+			// Left
 			8,
 			9,
 			10,
 			10,
 			11,
-			8, // Left
+			8,
+			// Right
 			12,
-			14,
 			13,
 			14,
+			14,
+			15,
 			12,
-			15, // Right
+			// Bottom
 			16,
 			17,
 			18,
 			18,
 			19,
-			16, // Bottom
+			16,
+			// Top
 			20,
-			22,
 			21,
 			22,
-			20,
-			23 // Top
-		};
+			22,
+			23,
+			20};
 
 		return std::make_unique<Mesh>(vertices, indices);
 	}

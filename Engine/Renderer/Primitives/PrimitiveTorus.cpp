@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/28 10:30:05 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 10:25:08 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 15:12:24 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,6 +22,11 @@
 
 namespace Engine {
 
+	// Generates a torus mesh centered at the origin, lying on the XZ plane.
+	// mainRadius: distance from center to tube center
+	// tubeRadius: radius of the tube
+	// mainSegments: number of segments around the main ring
+	// tubeSegments: number of segments around the tube
 	std::unique_ptr<Mesh> Primitives::CreateTorus(float mainRadius, float tubeRadius, unsigned int mainSegments, unsigned int tubeSegments) {
 		std::vector<Vertex> vertices;
 		std::vector<unsigned int> indices;
@@ -30,51 +35,53 @@ namespace Engine {
 		indices.reserve(mainSegments * tubeSegments * 6);
 
 		for (unsigned int i = 0; i <= mainSegments; ++i) {
-			float mainAngle = (float)i / mainSegments * 2.0f * M_PI;
-			float cosMain	= cosf(mainAngle);
-			float sinMain	= sinf(mainAngle);
-			glm::vec3 mainCirclePos(cosMain * mainRadius, 0.0f, sinMain * mainRadius);
+			float theta	   = float(i) / mainSegments * 2.0f * M_PI;
+			float cosTheta = cosf(theta);
+			float sinTheta = sinf(theta);
+
+			// Center of tube circle for this main segment
+			glm::vec3 circleCenter = {cosTheta * mainRadius, 0.0f, sinTheta * mainRadius};
 
 			for (unsigned int j = 0; j <= tubeSegments; ++j) {
-				float tubeAngle = (float)j / tubeSegments * 2.0f * M_PI;
-				float cosTube	= cosf(tubeAngle);
-				float sinTube	= sinf(tubeAngle);
+				float phi	 = float(j) / tubeSegments * 2.0f * M_PI;
+				float cosPhi = cosf(phi);
+				float sinPhi = sinf(phi);
 
-				// Calculate position
-				float x = (mainRadius + tubeRadius * cosTube) * cosMain;
-				float y = tubeRadius * sinTube;
-				float z = (mainRadius + tubeRadius * cosTube) * sinMain;
+				// Position of vertex
+				float x = (mainRadius + tubeRadius * cosPhi) * cosTheta;
+				float y = tubeRadius * sinPhi;
+				float z = (mainRadius + tubeRadius * cosPhi) * sinTheta;
 				glm::vec3 pos(x, y, z);
 
-				// Calculate normal (points from tube center outwards)
-				glm::vec3 tubeCenter = mainCirclePos;
-				glm::vec3 normal	 = glm::normalize(pos - tubeCenter);
+				// Normal: from tube center to vertex
+				glm::vec3 normal = glm::normalize(pos - circleCenter);
 
-				// Calculate UVs
-				float u = (float)i / mainSegments;
-				float v = (float)j / tubeSegments;
+				// Texture coordinates
+				glm::vec2 uv(float(i) / mainSegments, float(j) / tubeSegments);
 
-				// Calculate Tangent (derivative wrt mainAngle) and Bitangent (derivative wrt tubeAngle)
-				glm::vec3 tangent(-(mainRadius + tubeRadius * cosTube) * sinMain, 0, (mainRadius + tubeRadius * cosTube) * cosMain);
-				glm::vec3 bitangent(-tubeRadius * sinTube * cosMain, tubeRadius * cosTube, -tubeRadius * sinTube * sinMain);
+				// Tangent: direction of increasing theta (main ring)
+				glm::vec3 tangent = glm::normalize(glm::vec3(
+					-sinTheta * (mainRadius + tubeRadius * cosPhi),
+					0.0f,
+					cosTheta * (mainRadius + tubeRadius * cosPhi)));
 
-				tangent	  = glm::normalize(tangent);
-				bitangent = glm::normalize(bitangent);
-				// Optional: Re-orthogonalize
-				// tangent = glm::normalize(glm::cross(bitangent, normal));
-				// bitangent = glm::normalize(glm::cross(normal, tangent));
+				// Bitangent: direction of increasing phi (tube ring)
+				glm::vec3 bitangent = glm::normalize(glm::vec3(
+					-cosTheta * tubeRadius * sinPhi,
+					tubeRadius * cosPhi,
+					-sinTheta * tubeRadius * sinPhi));
 
-				vertices.push_back({pos, normal, {u, v}, tangent, bitangent});
+				vertices.push_back({pos, normal, uv, tangent, bitangent});
 			}
 		}
 
-		// Indices remain the same
+		// Generate indices for triangles
 		for (unsigned int i = 0; i < mainSegments; ++i) {
 			for (unsigned int j = 0; j < tubeSegments; ++j) {
 				unsigned int i0 = i * (tubeSegments + 1) + j;
 				unsigned int i1 = i0 + 1;
-				unsigned int i2 = (i + 1) * (tubeSegments + 1) + j; // Next main segment, same tube segment
-				unsigned int i3 = i2 + 1;							// Next main segment, next tube segment
+				unsigned int i2 = (i + 1) * (tubeSegments + 1) + j;
+				unsigned int i3 = i2 + 1;
 
 				indices.push_back(i0);
 				indices.push_back(i2);

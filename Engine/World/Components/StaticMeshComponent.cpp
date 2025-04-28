@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:28:37 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 11:40:53 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 14:05:42 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -119,10 +119,9 @@ namespace Engine {
 					shader.SetUniformInt("u_HasAlbedoMap", 0);
 					shader.SetUniformVec3("u_AlbedoColor", m_Material->albedoColor);
 				}
-			} else { // Wireframe
-					 // --- Wireframe Uniforms ---
-					 // Optionally set wireframe color
-					 // shader.SetUniformVec4("u_WireColor", glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+			} else if (mode == RenderMode::Wireframe) {
+				// --- Wireframe Uniforms ---
+				shader.SetUniformVec4("u_WireColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
 			}
 
 			// Draw the mesh (common to all modes)

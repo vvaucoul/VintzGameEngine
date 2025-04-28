@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:43:47 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 11:08:36 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 14:05:29 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -193,6 +193,10 @@ namespace Engine {
 
 	void Shader::SetUniformVec3(const std::string &name, const glm::vec3 &vector) const {
 		if (m_RendererID != 0) glUniform3f(GetUniformLocation(name), vector.x, vector.y, vector.z);
+	}
+
+	void Shader::SetUniformVec4(const std::string &name, const glm::vec4 &vector) const {
+		if (m_RendererID != 0) glUniform4f(GetUniformLocation(name), vector.x, vector.y, vector.z, vector.w);
 	}
 
 	void Shader::SetUniformMat4(const std::string &name, const glm::mat4 &matrix) const {

@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:19:09 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 11:53:07 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 13:47:55 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -222,8 +222,8 @@ namespace Engine {
 		// --- PBR Materials ---
 		// Dirt Material for the ground plane - Load textures at native resolution
 		auto worldMaterial = std::make_shared<Engine::MaterialPBR>();
-		worldMaterial->SetAlbedoMap("assets/textures/World_Diffuse.png", 1024, 1024, ResamplingAlgorithm::Bilinear);
-		worldMaterial->SetNormalMap("assets/textures/World_Normal.png", 1024, 1024, ResamplingAlgorithm::Bilinear);
+		worldMaterial->SetAlbedoMap("assets/textures/World_Diffuse.png");
+		worldMaterial->SetNormalMap("assets/textures/World_Normal.png");
 		worldMaterial->metallic	 = 0.2f;
 		worldMaterial->roughness = 0.75f;
 		worldMaterial->ao		 = 1.0f;
