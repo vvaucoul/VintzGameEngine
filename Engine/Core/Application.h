@@ -6,13 +6,13 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:18:59 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 21:28:02 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 00:53:20 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
-#include "Renderer/Framebuffer.h"
+#include "Renderer/GPUResources/Framebuffer.h"
 #include <memory>
 
 namespace Engine {
@@ -50,11 +50,12 @@ namespace Engine {
 		static Shader *s_UnlitShader;
 		static Shader *s_WireframeShader;
 
+		static RenderMode s_CurrentRenderMode;
+		static RenderingPath s_CurrentRenderingPath; // Current rendering path
+
 		static std::unique_ptr<Shader> s_GBufferShader;			 // Shader for G-Buffer pass
 		static std::unique_ptr<Shader> s_DeferredLightingShader; // Shader for Deferred lighting pass
-		static RenderMode s_CurrentRenderMode;
-		static RenderingPath s_CurrentRenderingPath;	  // Current rendering path
-		static std::unique_ptr<Framebuffer> s_GBufferFBO; // G-Buffer Framebuffer
+		static std::unique_ptr<Framebuffer> s_GBufferFBO;		 // G-Buffer Framebuffer
 	};
 
 } // namespace Engine

@@ -6,14 +6,14 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:24:56 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 11:27:31 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 00:55:25 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "World/World.h"
 #include "Core/Application.h" // Include Application to check render mode (or pass shader pointer type)
 #include "Renderer/Camera.h"
-#include "Renderer/Shader.h"
+#include "Renderer/Shaders/Shader.h"
 #include "World/Actor.h"
 #include "World/Components/BillboardComponent.h" // Include BillboardComponent
 #include "World/Components/DirectionalLightComponent.h"

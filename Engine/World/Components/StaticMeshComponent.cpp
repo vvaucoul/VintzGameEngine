@@ -6,16 +6,16 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:28:37 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 14:05:42 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 00:58:58 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "World/Components/StaticMeshComponent.h"
+#include "Renderer/Geometry/Mesh.h"
+#include "Renderer/Geometry/Model.h"
 #include "Renderer/Materials/DefaultMaterial.h" // Include default material getter
 #include "Renderer/Materials/MaterialPBR.h"
-#include "Renderer/Mesh.h"
-#include "Renderer/Model.h"
-#include "Renderer/Shader.h"
+#include "Renderer/Shaders/Shader.h"
 #include "Renderer/Textures/Texture.h"
 #include "World/Actor.h"
 #include "World/Components/SceneComponent.h"
@@ -137,6 +137,31 @@ namespace Engine {
 		// Draw geometry (no material needed)
 		if (m_Model) {
 			m_Model->DrawGeometry(depthShader);
+		} else if (m_Mesh) {
+			m_Mesh->Draw();
+		}
+	}
+
+	void StaticMeshComponent::RenderGeometry(Shader &shader) {
+		SceneComponent *sceneComp = GetOwner()->GetRootComponent();
+		if (!sceneComp) return;
+
+		shader.SetUniformMat4("u_Model", sceneComp->GetWorldTransform());
+
+		// Envoi des uniforms pour le GBuffer
+		shader.SetUniformVec3("u_Material_AlbedoColor", m_Material->albedoColor);
+		shader.SetUniformFloat("u_Material_Metallic", m_Material->metallic);
+		shader.SetUniformFloat("u_Material_Roughness", m_Material->roughness);
+		shader.SetUniformFloat("u_Material_AO", m_Material->ao);
+
+		// Pour l’instant, on suppose pas de textures (sinon il faut les binder et set les booléens)
+		shader.SetUniformInt("u_Material_HasAlbedoMap", 0);
+		shader.SetUniformInt("u_Material_HasMetallicMap", 0);
+		shader.SetUniformInt("u_Material_HasRoughnessMap", 0);
+		shader.SetUniformInt("u_Material_HasAOMap", 0);
+
+		if (m_Model) {
+			m_Model->DrawGeometry(shader);
 		} else if (m_Mesh) {
 			m_Mesh->Draw();
 		}

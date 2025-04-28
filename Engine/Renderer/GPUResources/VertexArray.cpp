@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:54:58 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/26 11:54:58 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 00:50:50 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,12 +33,20 @@ namespace Engine {
 	}
 
 	void VertexArray::AddVertexBuffer(const VertexBuffer &vertexBuffer) {
+		// Bind VAO and VBO before setting up attribute pointers
 		Bind();
 		vertexBuffer.Bind();
 
-		// Ici : layout fixe pour l’instant : position 3 floats
+		// For now: assume a simple layout (position only, 3 floats per vertex)
 		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+		glVertexAttribPointer(
+			0,				   // Attribute index
+			3,				   // Number of components (x, y, z)
+			GL_FLOAT,		   // Type
+			GL_FALSE,		   // Normalized?
+			3 * sizeof(float), // Stride
+			(void *)0		   // Offset
+		);
 	}
 
 } // namespace Engine

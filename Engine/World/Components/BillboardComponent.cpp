@@ -6,13 +6,13 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/28 10:40:00 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 15:04:21 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 00:55:25 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "World/Components/BillboardComponent.h"
 #include "Renderer/Primitives/Primitives.h"
-#include "Renderer/Shader.h"
+#include "Renderer/Shaders/Shader.h"
 #include "World/Actor.h"
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>

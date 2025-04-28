@@ -1,37 +1,40 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   IndexBuffer.cpp                                    :+:      :+:    :+:   */
+/*   VertexBuffer.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/04/26 11:54:47 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/26 11:54:47 by vvaucoul         ###   ########.fr       */
+/*   Created: 2025/04/26 11:54:36 by vvaucoul          #+#    #+#             */
+/*   Updated: 2025/04/29 00:49:56 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "IndexBuffer.h"
+#include "VertexBuffer.h"
 #include <glad/glad.h>
 
 namespace Engine {
 
-	IndexBuffer::IndexBuffer(unsigned int *indices, unsigned int count)
-		: m_Count(count) {
+	// Create a vertex buffer and upload data to GPU
+	VertexBuffer::VertexBuffer(float *vertices, unsigned int size) {
 		glGenBuffers(1, &m_RendererID);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_RendererID);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(unsigned int), indices, GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
+		glBufferData(GL_ARRAY_BUFFER, size, vertices, GL_STATIC_DRAW);
 	}
 
-	IndexBuffer::~IndexBuffer() {
+	// Release GPU buffer
+	VertexBuffer::~VertexBuffer() {
 		glDeleteBuffers(1, &m_RendererID);
 	}
 
-	void IndexBuffer::Bind() const {
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_RendererID);
+	// Bind this buffer for use
+	void VertexBuffer::Bind() const {
+		glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
 	}
 
-	void IndexBuffer::Unbind() const {
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	// Unbind any vertex buffer
+	void VertexBuffer::Unbind() const {
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
 } // namespace Engine

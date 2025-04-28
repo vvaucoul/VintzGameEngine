@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:19:09 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 17:17:46 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 01:06:39 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,14 +15,14 @@
 
 #include "Core/Application.h"
 #include "Renderer/Camera.h"
+#include "Renderer/GPUResources/UniformBuffer.h"
+#include "Renderer/Geometry/Model.h"
 #include "Renderer/Materials/DefaultMaterial.h" // Include DefaultMaterial header
 #include "Renderer/Materials/MaterialPBR.h"
-#include "Renderer/Model.h"
-#include "Renderer/PostProcessor.h"
+#include "Renderer/Pipeline/PostProcessor.h"
+#include "Renderer/Pipeline/ShadowMap.h"
 #include "Renderer/Primitives/Primitives.h"
-#include "Renderer/Shader.h"
-#include "Renderer/ShadowMap.h"
-#include "Renderer/UniformBuffer.h"
+#include "Renderer/Shaders/Shader.h"
 #include "World/Actor.h"
 #include "World/Components/DirectionalLightComponent.h"
 #include "World/Components/LightComponent.h"
@@ -49,7 +49,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "Renderer/Mesh.h" // Include Mesh for s_PrimitiveMeshes type
+#include "Renderer/Geometry/Mesh.h" // Include Mesh for s_PrimitiveMeshes type
 
 namespace Engine {
 
@@ -69,11 +69,60 @@ namespace Engine {
 	float s_LastY		  = 0.0f;
 	bool s_IsCameraActive = false;
 
+	RenderingPath Application::s_CurrentRenderingPath			  = RenderingPath::Forward; // Default to Forward
+	std::unique_ptr<Framebuffer> Application::s_GBufferFBO		  = nullptr;
+	std::unique_ptr<Shader> Application::s_GBufferShader		  = nullptr;
+	std::unique_ptr<Shader> Application::s_DeferredLightingShader = nullptr;
+
 	// Define new static members
 	Shader *Application::s_PBRShader			= nullptr;
 	Shader *Application::s_UnlitShader			= nullptr;
 	Shader *Application::s_WireframeShader		= nullptr;
 	RenderMode Application::s_CurrentRenderMode = RenderMode::Default;
+
+	// Helper to render a full screen quad (can be moved to PostProcessor or Renderer class)
+	static unsigned int quadVAO = 0;
+	static unsigned int quadVBO;
+	void renderQuad() {
+		if (quadVAO == 0) {
+			float quadVertices[] = {
+				// positions        // texture Coords
+				-1.0f,
+				1.0f,
+				0.0f,
+				0.0f,
+				1.0f,
+				-1.0f,
+				-1.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				1.0f,
+				1.0f,
+				0.0f,
+				1.0f,
+				1.0f,
+				1.0f,
+				-1.0f,
+				0.0f,
+				1.0f,
+				0.0f,
+			};
+			// setup plane VAO
+			glGenVertexArrays(1, &quadVAO);
+			glGenBuffers(1, &quadVBO);
+			glBindVertexArray(quadVAO);
+			glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+			glEnableVertexAttribArray(0);
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+			glEnableVertexAttribArray(1);
+			glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+		}
+		glBindVertexArray(quadVAO);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		glBindVertexArray(0);
+	}
 
 	static void FramebufferSizeCallback([[maybe_unused]] GLFWwindow *window, int width, int height) {
 		glViewport(0, 0, width, height);
@@ -194,11 +243,34 @@ namespace Engine {
 		s_WireframeShader = new Shader("Shaders/Core/wireframe.vert", "Shaders/Core/wireframe.frag");
 		s_DepthShader	  = std::make_unique<Engine::Shader>("Shaders/Core/depth.vert", "Shaders/Core/depth.frag");
 
+		// Load Deferred Shaders
+		s_GBufferShader			 = std::make_unique<Engine::Shader>("Shaders/Core/Deferred/gbuffer.vert", "Shaders/Core/Deferred/gbuffer.frag");
+		s_DeferredLightingShader = std::make_unique<Engine::Shader>("Shaders/Core/Deferred/deferred_lighting.vert", "Shaders/Core/Deferred/deferred_lighting.frag");
+
 		if (!s_PBRShader->IsValid() || !s_UnlitShader->IsValid() || !s_WireframeShader->IsValid()) {
-			std::cerr << "[ERROR] Failed to load shaders." << std::endl;
+			std::cerr << "[ERROR] Failed to load forward shaders." << std::endl;
 			glfwTerminate();
 			exit(EXIT_FAILURE);
 		}
+
+		if (!s_GBufferShader->IsValid() || !s_DeferredLightingShader->IsValid()) {
+			std::cerr << "[ERROR] Failed to load deferred shaders." << std::endl;
+			glfwTerminate();
+			exit(EXIT_FAILURE);
+		}
+
+		s_GBufferFBO = std::make_unique<Framebuffer>(windowWidth, windowHeight);
+		// Attachment 0: Position (World Space) + Depth? (RGBA16F or RGBA32F)
+		s_GBufferFBO->AddColorTexture(GL_RGBA16F, GL_RGBA, GL_FLOAT);
+		// Attachment 1: Normal (World Space) + Metallic? (RGBA16F)
+		s_GBufferFBO->AddColorTexture(GL_RGBA16F, GL_RGBA, GL_FLOAT);
+		// Attachment 2: Albedo + Roughness? (RGBA8)
+		s_GBufferFBO->AddColorTexture(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+		// Attachment 3: AO + Emissive + Specular? (RGBA8 or RGBA16F) - Adjust as needed
+		s_GBufferFBO->AddColorTexture(GL_RGBA16F, GL_RGBA, GL_FLOAT);
+		// Depth/Stencil Attachment
+		s_GBufferFBO->AddDepthStencil();
+		s_GBufferFBO->Build(); // Check for completeness
 
 		s_UBO = new UniformBuffer(sizeof(glm::mat4) * 2, 0);
 
@@ -392,31 +464,17 @@ namespace Engine {
 				s_CurrentRenderMode = RenderMode::Unlit;
 			} else if (glfwGetKey(s_Window, GLFW_KEY_F3) == GLFW_PRESS) {
 				s_CurrentRenderMode = RenderMode::Default;
+			} else if (glfwGetKey(s_Window, GLFW_KEY_F9) == GLFW_PRESS) {
+				s_CurrentRenderingPath = RenderingPath::Forward;
+				std::cout << "Switched to Forward Shading" << std::endl;
+			} else if (glfwGetKey(s_Window, GLFW_KEY_F10) == GLFW_PRESS) {
+				s_CurrentRenderingPath = RenderingPath::Deferred;
+				std::cout << "Switched to Deferred Shading" << std::endl;
+			} else if (glfwGetKey(s_Window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+				glfwSetWindowShouldClose(s_Window, true);
 			}
 
-			// --- Camera Processing ---
-			// REMOVE MOUSE HANDLING LOGIC FROM HERE - It's handled in MouseCallback
-			// if (!s_IsCameraActive) {
-			// 	// s_FirstMouse = true; // No longer needed here, handled in MouseButtonCallback
-			// 	return;
-			// }
-
-			// if (s_FirstMouse) {
-			// 	s_LastX		 = float(xpos);
-			// 	s_LastY		 = float(ypos);
-			// 	s_FirstMouse = false;
-			// 	return;
-			// }
-			// float dx = float(xpos) - s_LastX;
-			// float dy = s_LastY - float(ypos); // reversed since y-coordinates go from bottom to top
-			// s_LastX	 = float(xpos);
-			// s_LastY	 = float(ypos);
-
-			// if (s_Camera) {
-			// 	s_Camera->ProcessMouseMovement(dx, dy);
-			// }
-
-			// Update UBO view & projection matrices
+			// --- Camera & UBO Update ---
 			glm::mat4 proj = s_Camera->GetProjectionMatrix();
 			glm::mat4 view = s_Camera->GetViewMatrix();
 			s_UBO->SetData(0, sizeof(glm::mat4), &proj[0][0]);
@@ -456,39 +514,170 @@ namespace Engine {
 			// Reset viewport and clear
 			glClearColor(0.05f, 0.05f, 0.08f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			glEnable(GL_DEPTH_TEST);
 
-			// Select Shader and Set Polygon Mode
-			Shader *currentShader = s_PBRShader;
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			if (s_CurrentRenderingPath == RenderingPath::Forward) {
+				// --- Forward Shading Path ---
+				glEnable(GL_DEPTH_TEST);
+				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Default
 
-			if (s_CurrentRenderMode == RenderMode::Unlit) {
-				currentShader = s_UnlitShader;
-			} else if (s_CurrentRenderMode == RenderMode::Wireframe) {
-				currentShader = s_WireframeShader;
-				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+				Shader *currentShader = s_PBRShader;
+				if (s_CurrentRenderMode == RenderMode::Unlit) {
+					currentShader = s_UnlitShader;
+				} else if (s_CurrentRenderMode == RenderMode::Wireframe) {
+					currentShader = s_WireframeShader;
+					glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+				}
+
+				currentShader->Bind();
+
+				// Set common uniforms (ViewPos, ShadowMap for PBR)
+				if (s_CurrentRenderMode == RenderMode::Default && s_Camera) {
+					currentShader->SetUniformVec3("u_ViewPos", s_Camera->GetPosition());
+					s_ShadowMap->BindForReading(GL_TEXTURE4); // Assuming unit 4 for shadow map
+					currentShader->SetUniformInt("shadowMap", 4);
+					currentShader->SetUniformMat4("lightSpaceMatrix", s_ShadowMap->GetLightSpaceMatrix());
+				}
+
+				// Tick and Render the world using the selected forward shader
+				s_World->Tick(delta);
+				s_World->Render(*currentShader, view, s_CurrentRenderMode); // World::Render handles lights/materials for forward
+
+				// Restore polygon mode if wireframe was used
+				if (s_CurrentRenderMode == RenderMode::Wireframe) {
+					glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+				}
+
+			} else { // s_CurrentRenderingPath == RenderingPath::Deferred
+				// --- Deferred Shading Path ---
+
+				// 1. G-Buffer Pass: Render geometry data
+				s_GBufferFBO->Bind();
+				glViewport(0, 0, display_w, display_h); // Ensure viewport matches G-Buffer size
+				glClearColor(0.0f, 0.0f, 0.0f, 1.0f);	// Clear G-Buffer
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				glEnable(GL_DEPTH_TEST);
+				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Always fill for G-Buffer
+
+				s_GBufferShader->Bind();
+				// Render opaque objects using GBuffer shader
+				// Need a way to render geometry without material uniforms, maybe a new World::RenderGeometry method
+				// Or modify StaticMeshComponent::Render/Model::Draw to accept a flag/shader type
+				for (const auto &actor : s_World->GetActors()) {
+					auto meshComp = actor->GetComponent<StaticMeshComponent>();
+					if (meshComp) {
+						// Call a method on StaticMeshComponent to render geometry for G-Buffer
+						// This method needs to be added to StaticMeshComponent
+						// It should handle both Model and Mesh cases internally
+						meshComp->RenderGeometry(*s_GBufferShader); // Assuming RenderGeometry exists or will be added
+					}
+				}
+				s_GBufferFBO->Unbind();
+
+				// 2. Lighting Pass: Calculate lighting using G-Buffer
+				glBindFramebuffer(GL_FRAMEBUFFER, 0); // Render to default buffer (or PostProcess HDR FBO)
+				glClear(GL_COLOR_BUFFER_BIT);		  // Only clear color, depth is handled differently or not needed
+				glDisable(GL_DEPTH_TEST);			  // No depth test for full-screen quad
+
+				s_DeferredLightingShader->Bind();
+				// Bind G-Buffer textures
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, s_GBufferFBO->GetColorAttachment(0)); // Position + Metallic
+				s_DeferredLightingShader->SetUniformInt("gPositionMetallic", 0);   // Corrected name
+				glActiveTexture(GL_TEXTURE1);
+				glBindTexture(GL_TEXTURE_2D, s_GBufferFBO->GetColorAttachment(1)); // Normal + Roughness
+				s_DeferredLightingShader->SetUniformInt("gNormalRoughness", 1);	   // Corrected name
+				glActiveTexture(GL_TEXTURE2);
+				glBindTexture(GL_TEXTURE_2D, s_GBufferFBO->GetColorAttachment(2)); // Albedo + AO
+				s_DeferredLightingShader->SetUniformInt("gAlbedoAO", 2);		   // Corrected name
+
+				// Bind Shadow Map
+				s_ShadowMap->BindForReading(GL_TEXTURE4); // Assuming unit 4
+				s_DeferredLightingShader->SetUniformInt("shadowMap", 4);
+				s_DeferredLightingShader->SetUniformMat4("lightSpaceMatrix", s_ShadowMap->GetLightSpaceMatrix());
+
+				// Set light uniforms (needs adaptation for deferred shader)
+				// Example: Pass light data via UBO or uniform arrays
+				// Set light uniforms (needs adaptation for deferred shader)
+				s_DeferredLightingShader->SetUniformVec3("u_ViewPos", s_Camera->GetPosition());
+
+				// --- Setup Light Uniforms for Deferred Shader ---
+				// This part needs to be implemented based on how you structure lights in the deferred shader.
+				// You'll likely iterate through lights similar to World::Render but set uniforms
+				// matching the structures (e.g., u_PointLights, u_DirLights) in deferred_lighting.frag.
+
+				// Example (needs full implementation):
+				int pointLightCount					= 0;
+				int dirLightCount					= 0;
+				const int MAX_POINT_LIGHTS_DEFERRED = 10; // Match shader define
+				const int MAX_DIR_LIGHTS_DEFERRED	= 1;  // Match shader define
+
+				for (const auto &actor : s_World->GetActors()) {
+					if (auto dirLight = actor->GetComponent<DirectionalLightComponent>()) {
+						if (dirLightCount < MAX_DIR_LIGHTS_DEFERRED) {
+							std::string baseName = "u_DirLights[" + std::to_string(dirLightCount) + "]";
+							s_DeferredLightingShader->SetUniformVec3(baseName + ".direction", dirLight->GetDirection());
+							s_DeferredLightingShader->SetUniformVec3(baseName + ".color", dirLight->GetColor());
+							// Add intensity if your shader struct uses it
+							dirLightCount++;
+						}
+					} else if (auto pointLight = actor->GetComponent<PointLightComponent>()) {
+						// Exclude SpotLights if they are handled separately or not supported yet
+						if (!dynamic_cast<SpotLightComponent *>(pointLight) && pointLightCount < MAX_POINT_LIGHTS_DEFERRED) {
+							std::string baseName = "u_PointLights[" + std::to_string(pointLightCount) + "]";
+							s_DeferredLightingShader->SetUniformVec3(baseName + ".position", pointLight->GetOwner()->GetRootComponent()->GetWorldPosition());
+							s_DeferredLightingShader->SetUniformVec3(baseName + ".color", pointLight->GetColor());
+							// Add intensity if your shader struct uses it
+							s_DeferredLightingShader->SetUniformFloat(baseName + ".constant", pointLight->GetConstant());
+							s_DeferredLightingShader->SetUniformFloat(baseName + ".linear", pointLight->GetLinear());
+							s_DeferredLightingShader->SetUniformFloat(baseName + ".quadratic", pointLight->GetQuadratic());
+							pointLightCount++;
+						}
+					}
+					// Add SpotLight handling if needed
+				}
+				s_DeferredLightingShader->SetUniformInt("u_NumPointLights", pointLightCount);
+				s_DeferredLightingShader->SetUniformInt("u_NumDirLights", dirLightCount);
+				// --- End Light Uniform Setup ---
+
+				renderQuad(); // Draw fullscreen quad to apply lighting
+
+				// 3. Forward Pass (Transparency, Billboards, etc.)
+				// Copy depth information from G-Buffer to default framebuffer
+				glBindFramebuffer(GL_READ_FRAMEBUFFER, s_GBufferFBO->GetID()); // Use GetID() instead of GetFBO()
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);					   // Draw to default FBO
+				glBlitFramebuffer(0, 0, display_w, display_h, 0, 0, display_w, display_h, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+				glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default FBO
+
+				glEnable(GL_DEPTH_TEST);
+				// glDepthMask(GL_FALSE); // Optional: Render transparent objects without writing depth
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+				// Render billboards using a forward shader (e.g., PBR or Unlit)
+				Shader *billboardShader = s_PBRShader; // Or s_UnlitShader
+				billboardShader->Bind();
+				// Set common uniforms again if needed (ViewPos, ShadowMap etc.)
+				if (s_Camera) billboardShader->SetUniformVec3("u_ViewPos", s_Camera->GetPosition());
+				// ... set other uniforms ...
+				for (const auto &actor : s_World->GetActors()) {
+					auto billboards = actor->GetComponentsByClass<BillboardComponent>();
+					for (auto *billboard : billboards) {
+						if (billboard) {
+							// BillboardComponent::Render needs to handle the shader correctly
+							billboard->Render(*billboardShader, view, RenderMode::Default); // Use appropriate mode
+						}
+					}
+				}
+
+				glDisable(GL_BLEND);
+				// glDepthMask(GL_TRUE); // Restore depth writing if it was disabled
 			}
 
-			currentShader->Bind();
+			// --- Post Processing (If enabled, would happen here or wrap the main rendering) ---
+			// s_PostProcessor->Render([&]() { /* Render logic goes here */ });
 
-			// Set common uniforms
-			if (s_CurrentRenderMode == RenderMode::Default && s_Camera) {
-				currentShader->SetUniformVec3("u_ViewPos", s_Camera->GetPosition());
-				s_ShadowMap->BindForReading(GL_TEXTURE4);
-				currentShader->SetUniformInt("shadowMap", 4);
-				currentShader->SetUniformMat4("lightSpaceMatrix", s_ShadowMap->GetLightSpaceMatrix());
-			}
-
-			// Tick and Render the world
-			s_World->Tick(delta);
-			s_World->Render(*currentShader, view, s_CurrentRenderMode);
-
-			// Restore polygon mode
-			if (s_CurrentRenderMode == RenderMode::Wireframe) {
-				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-			}
-
-			glActiveTexture(GL_TEXTURE0);
+			// --- Swap Buffers & Poll Events ---
+			glActiveTexture(GL_TEXTURE0); // Reset active texture unit
 			glfwSwapBuffers(s_Window);
 			glfwPollEvents();
 		}
@@ -509,6 +698,11 @@ namespace Engine {
 		delete s_UnlitShader;
 		delete s_WireframeShader;
 		delete s_Camera;
+
+		s_GBufferFBO.reset();
+		s_GBufferShader.reset();
+		s_DeferredLightingShader.reset();
+
 		s_PrimitiveMeshes.clear(); // Release primitive meshes
 		glfwDestroyWindow(s_Window);
 		glfwTerminate();

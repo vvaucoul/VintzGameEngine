@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Renderer/Shader.h"				 // For SetupUniforms signature
+#include "Renderer/Shaders/Shader.h"		 // For SetupUniforms signature
 #include "World/Components/SceneComponent.h" // Include SceneComponent
 #include <glm/glm.hpp>
 

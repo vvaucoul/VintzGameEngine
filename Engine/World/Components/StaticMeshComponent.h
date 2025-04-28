@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:14:42 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 11:27:30 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 23:12:33 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -66,6 +66,13 @@ namespace Engine {
 		 * @param depthShader Shader for depth rendering.
 		 */
 		void RenderDepth(Shader &depthShader);
+
+		/**
+		 * @brief Renders the geometry of the mesh/model without material setup.
+		 * Used primarily for the G-Buffer pass in deferred shading.
+		 * @param shader The shader to use (typically the G-Buffer shader).
+		 */
+		void RenderGeometry(Shader &shader);
 
 		/**
 		 * @brief Set the PBR material.

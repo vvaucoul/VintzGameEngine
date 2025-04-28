@@ -6,15 +6,15 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 12:26:54 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/26 23:49:53 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 00:58:48 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Mesh.h"
-#include "IndexBuffer.h"
-#include "Shader.h"
-#include "VertexArray.h"
-#include "VertexBuffer.h"
+#include "Renderer/GPUResources/IndexBuffer.h"
+#include "Renderer/GPUResources/VertexArray.h"
+#include "Renderer/GPUResources/VertexBuffer.h"
+#include "Renderer/Shaders/Shader.h"
 #include <glad/glad.h>
 #include <iostream> // For debugging
 

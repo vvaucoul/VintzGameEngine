@@ -6,13 +6,13 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/27 00:01:23 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 22:47:24 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 01:05:49 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "Renderer/PostProcessor.h"
-#include "Renderer/Framebuffer.h"
-#include "Renderer/Shader.h"
+#include "Renderer/Pipeline/PostProcessor.h"
+#include "Renderer/GPUResources/Framebuffer.h"
+#include "Renderer/Shaders/Shader.h"
 #include <functional>
 #include <glad/glad.h>
 #include <iostream>
@@ -22,28 +22,30 @@ namespace Engine {
 
 	PostProcessor::PostProcessor(unsigned w, unsigned h)
 		: m_Width(w), m_Height(h) {
-		// 1) HDR FBO : deux color attachments (scene + bright)
+		// Create HDR framebuffer with two color attachments: scene color and brightness (for bloom)
 		m_HDRFBO = std::make_unique<Framebuffer>(w, h);
-		m_HDRFBO->AddColorTexture(GL_RGBA16F, GL_RGBA, GL_FLOAT);
-		m_HDRFBO->AddColorTexture(GL_RGBA16F, GL_RGBA, GL_FLOAT);
+		m_HDRFBO->AddColorTexture(GL_RGBA16F, GL_RGBA, GL_FLOAT); // scene color
+		m_HDRFBO->AddColorTexture(GL_RGBA16F, GL_RGBA, GL_FLOAT); // brightness
 		m_HDRFBO->AddDepthStencil();
 		m_HDRFBO->Build();
 
-		// 2) Ping-Pong FBO pour blur
+		// Create two ping-pong framebuffers for Gaussian blur passes
 		for (int i = 0; i < 2; ++i) {
 			m_PingPongFBO[i] = std::make_unique<Framebuffer>(w, h);
 			m_PingPongFBO[i]->AddColorTexture(GL_RGBA16F, GL_RGBA, GL_FLOAT);
 			m_PingPongFBO[i]->Build();
 		}
 
-		// 3) Charger les shaders
-		// Update paths to PostProcess directory
-		m_BloomExtractShader = std::make_unique<Shader>("Shaders/PostProcess/bloom_extract.vert",
-														"Shaders/PostProcess/bloom_extract.frag");
-		m_GaussianBlurShader = std::make_unique<Shader>("Shaders/PostProcess/blur.vert",
-														"Shaders/PostProcess/blur.frag");
-		m_FinalShader		 = std::make_unique<Shader>("Shaders/PostProcess/final.vert",
-													"Shaders/PostProcess/final.frag");
+		// Load post-process shaders
+		m_BloomExtractShader = std::make_unique<Shader>(
+			"Shaders/PostProcess/bloom_extract.vert",
+			"Shaders/PostProcess/bloom_extract.frag");
+		m_GaussianBlurShader = std::make_unique<Shader>(
+			"Shaders/PostProcess/blur.vert",
+			"Shaders/PostProcess/blur.frag");
+		m_FinalShader = std::make_unique<Shader>(
+			"Shaders/PostProcess/final.vert",
+			"Shaders/PostProcess/final.frag");
 
 		initRenderData();
 	}
@@ -54,60 +56,58 @@ namespace Engine {
 	}
 
 	void PostProcessor::Render(std::function<void()> sceneRender) {
-		// Ensure depth test is enabled for scene rendering if needed
 		glEnable(GL_DEPTH_TEST);
 
-		// 1. Render scene into HDR framebuffer (with MRT)
+		// Render the scene to HDR framebuffer (multiple render targets)
 		m_HDRFBO->Bind();
-		// Specify draw buffers for MRT
 		unsigned int attachments[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
 		glDrawBuffers(2, attachments);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		sceneRender(); // Call the provided function to render the scene
+		sceneRender();
 		m_HDRFBO->Unbind();
 
-		// Disable depth test for subsequent 2D quad rendering
 		glDisable(GL_DEPTH_TEST);
 
-		// --- Bloom Pipeline ---
+		// Gaussian blur: alternate horizontal/vertical passes using ping-pong FBOs
 		bool horizontal		 = true;
 		bool first_iteration = true;
-		int amount			 = 10; // Number of blur passes (5 horizontal, 5 vertical)
+		const int blurPasses = 10;
 
 		m_GaussianBlurShader->Bind();
-		for (unsigned int i = 0; i < amount; i++) {
-			m_PingPongFBO[horizontal]->Bind(); // Bind target ping-pong FBO
+		for (int i = 0; i < blurPasses; ++i) {
+			m_PingPongFBO[horizontal]->Bind();
 			m_GaussianBlurShader->SetUniformInt("horizontal", horizontal);
 
 			glActiveTexture(GL_TEXTURE0);
-			// Bind texture: In the first iteration, bind the HDR bright pass, otherwise bind the previous ping-pong result
+			// First pass uses brightness texture, subsequent passes use previous blur result
 			glBindTexture(GL_TEXTURE_2D, first_iteration ? m_HDRFBO->GetColorAttachment(1) : m_PingPongFBO[!horizontal]->GetColorAttachment(0));
-			m_GaussianBlurShader->SetUniformInt("image", 0); // Assuming blur shader uses uniform "image"
+			m_GaussianBlurShader->SetUniformInt("image", 0);
 
-			renderQuad(); // Render the quad to apply the blur
+			renderQuad();
 
-			m_PingPongFBO[horizontal]->Unbind(); // Unbind the target FBO
-
-			horizontal = !horizontal; // Toggle direction
+			m_PingPongFBO[horizontal]->Unbind();
+			horizontal = !horizontal;
 			if (first_iteration)
 				first_iteration = false;
 		}
-		// At this point, m_PingPongFBO[!horizontal] contains the final blurred texture
+		// Final blurred result is in m_PingPongFBO[!horizontal]
 
-		// 4) Final composite + tone mapping + gamma to default framebuffer
-		glBindFramebuffer(GL_FRAMEBUFFER, 0); // Bind default framebuffer
-		glClear(GL_COLOR_BUFFER_BIT);		  // Only need to clear color
+		// Composite: combine scene color and blurred bloom, apply tone mapping/gamma
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glClear(GL_COLOR_BUFFER_BIT);
+
 		m_FinalShader->Bind();
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, m_HDRFBO->GetColorAttachment(0)); // scene color
 		m_FinalShader->SetUniformInt("scene", 0);
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, m_PingPongFBO[!horizontal]->GetColorAttachment(0)); // blurred bloom texture
+		glBindTexture(GL_TEXTURE_2D, m_PingPongFBO[!horizontal]->GetColorAttachment(0)); // bloom
 		m_FinalShader->SetUniformInt("bloomBlur", 1);
-		m_FinalShader->SetUniformFloat("exposure", 1.0f); // Keep exposure at 1.0 for now
+		m_FinalShader->SetUniformFloat("exposure", 1.0f);
+
 		renderQuad();
 
-		// Reset texture bindings (optional but good practice)
+		// Unbind textures for cleanliness
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glActiveTexture(GL_TEXTURE1);
@@ -115,8 +115,9 @@ namespace Engine {
 	}
 
 	void PostProcessor::initRenderData() {
+		// Fullscreen quad: 2D positions and UVs
 		float quadVertices[] = {
-			// positions   // texCoords
+			// pos    // uv
 			-1,
 			-1,
 			0,
@@ -151,7 +152,6 @@ namespace Engine {
 		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)0);
 		glEnableVertexAttribArray(1);
 		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)(2 * sizeof(float)));
-		// Ensure VAO is unbound after setup
 		glBindVertexArray(0);
 	}
 

@@ -6,12 +6,12 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 20:26:06 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 17:06:14 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 00:55:25 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "PointLightComponent.h"
-#include "Renderer/Shader.h" // Include Shader for SetupUniforms
+#include "Renderer/Shaders/Shader.h" // Include Shader for SetupUniforms
 #include "World/Actor.h"
 #include "World/Components/SceneComponent.h" // Include SceneComponent for position
 #include <string>							 // Include for std::to_string

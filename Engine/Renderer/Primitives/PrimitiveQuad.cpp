@@ -6,11 +6,11 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/28 10:45:00 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 15:11:01 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 00:57:26 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "Renderer/Mesh.h"
+#include "Renderer/Geometry/Mesh.h"
 #include "Renderer/Primitives/Primitives.h"
 #include <memory>
 #include <vector>

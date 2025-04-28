@@ -6,14 +6,14 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/27 00:49:21 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 11:40:53 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 00:55:25 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Model.h"
 #include "Mesh.h"
 #include "Renderer/Materials/MaterialPBR.h"
-#include "Renderer/Shader.h"
+#include "Renderer/Shaders/Shader.h"
 #include "Renderer/Textures/Texture.h"
 
 #include <assimp/Importer.hpp>

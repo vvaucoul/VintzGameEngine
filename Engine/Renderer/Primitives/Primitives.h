@@ -6,13 +6,13 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 12:27:07 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 15:12:52 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 00:57:26 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
-#include "Renderer/Mesh.h"
+#include "Renderer/Geometry/Mesh.h"
 #include <memory>
 
 /**

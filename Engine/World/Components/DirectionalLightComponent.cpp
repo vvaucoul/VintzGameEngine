@@ -6,12 +6,12 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 20:25:51 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 10:47:37 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 00:55:25 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "DirectionalLightComponent.h"
-#include "Renderer/Shader.h" // Include Shader for SetupUniforms
+#include "Renderer/Shaders/Shader.h" // Include Shader for SetupUniforms
 #include "World/Actor.h"
 #include "World/Components/SceneComponent.h" // Include SceneComponent for rotation
 #include <glm/gtc/matrix_transform.hpp>
