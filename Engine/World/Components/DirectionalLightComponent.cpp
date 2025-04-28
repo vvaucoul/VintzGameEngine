@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 20:25:51 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 01:51:39 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 10:47:37 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,7 +20,12 @@
 namespace Engine {
 
 	DirectionalLightComponent::DirectionalLightComponent(Actor *owner, const glm::vec3 &color, float intensity)
-		: LightComponent(owner, color, intensity) { // Call base class constructor
+		: LightComponent(owner, color, intensity) {
+		// Add billboard component to the owner actor
+		if (owner) {
+			m_Billboard = &owner->AddComponent<BillboardComponent>("assets/billboards/Billboard_DirectionalLight.png", glm::vec2{0.5f, 0.5f});
+			// Billboard transform will follow the owning actor's root component by default.
+		}
 	}
 
 	glm::vec3 DirectionalLightComponent::GetDirection() const {

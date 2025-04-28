@@ -6,14 +6,16 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:24:56 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 23:27:44 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 11:27:31 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "World/World.h"
+#include "Core/Application.h" // Include Application to check render mode (or pass shader pointer type)
 #include "Renderer/Camera.h"
 #include "Renderer/Shader.h"
 #include "World/Actor.h"
+#include "World/Components/BillboardComponent.h" // Include BillboardComponent
 #include "World/Components/DirectionalLightComponent.h"
 #include "World/Components/PointLightComponent.h"
 #include "World/Components/SceneComponent.h"
@@ -53,55 +55,61 @@ namespace Engine {
 	}
 
 	/**
-	 * @brief Renders all visible actors and sets up lighting uniforms.
-	 * @param shader The shader used for rendering meshes and lighting.
-	 *
-	 * Iterates over all actors to:
-	 *   - Setup uniforms for all light components (directional, point, spot).
-	 *   - Render all StaticMeshComponents.
-	 * The number of active lights is passed to the shader for correct array indexing.
+	 * @brief Renders all visible actors and sets up lighting uniforms based on mode.
+	 * @param shader The shader selected based on the render mode.
+	 * @param viewMatrix The current camera view matrix.
+	 * @param mode The current rendering mode (Default, Unlit, Wireframe).
 	 */
-	void World::Render(Shader &shader) {
-		// --- Light Setup ---
-		int pointLightCount		   = 0;
-		int spotLightCount		   = 0;
-		const int MAX_POINT_LIGHTS = 4; // Must match shader definition
-		const int MAX_SPOT_LIGHTS  = 4; // Must match shader definition
+	void World::Render(Shader &shader, const glm::mat4 &viewMatrix, RenderMode mode) {
+		// --- Light Setup (Only for PBR/Default Mode) ---
+		if (mode == RenderMode::Default) {
+			int pointLightCount		   = 0;
+			int spotLightCount		   = 0;
+			const int MAX_POINT_LIGHTS = 4;
+			const int MAX_SPOT_LIGHTS  = 4;
 
-		// Iterate through all actors to find and setup light components
-		for (const auto &actor : m_Actors) {
-			// Directional Light (only one supported for now)
-			auto dirLight = actor->GetComponent<DirectionalLightComponent>();
-			if (dirLight) {
-				dirLight->SetupUniforms(shader, 0); // Index 0 for single directional light
-													// Only one directional light is supported; break if needed
+			for (const auto &actor : m_Actors) {
+				// Directional Light
+				if (auto dirLight = actor->GetComponent<DirectionalLightComponent>()) {
+					dirLight->SetupUniforms(shader, 0);
+				}
+				// Point Lights (excluding SpotLights)
+				if (auto pointLight = actor->GetComponent<PointLightComponent>()) {
+					if (!dynamic_cast<SpotLightComponent *>(pointLight) && pointLightCount < MAX_POINT_LIGHTS) {
+						pointLight->SetupUniforms(shader, pointLightCount++);
+					}
+				}
+				// Spot Lights
+				if (auto spotLight = actor->GetComponent<SpotLightComponent>()) {
+					if (spotLightCount < MAX_SPOT_LIGHTS) {
+						spotLight->SetupUniforms(shader, spotLightCount++);
+					}
+				}
 			}
-
-			// Point Lights
-			auto pointLight = actor->GetComponent<PointLightComponent>();
-			if (pointLight && pointLightCount < MAX_POINT_LIGHTS) {
-				pointLight->SetupUniforms(shader, pointLightCount);
-				pointLightCount++;
-			}
-
-			// Spot Lights
-			auto spotLight = actor->GetComponent<SpotLightComponent>();
-			if (spotLight && spotLightCount < MAX_SPOT_LIGHTS) {
-				spotLight->SetupUniforms(shader, spotLightCount);
-				spotLightCount++;
-			}
+			shader.SetUniformInt("numPointLights", pointLightCount);
+			shader.SetUniformInt("numSpotLights", spotLightCount);
 		}
 
-		// Pass the number of active lights to the shader
-		shader.SetUniformInt("numPointLights", pointLightCount);
-		shader.SetUniformInt("numSpotLights", spotLightCount);
-
-		// --- Render Static Meshes ---
-		// Render all StaticMeshComponents in the world
+		// --- Render Static Meshes & Collect Billboards ---
+		std::vector<BillboardComponent *> billboards;
 		for (const auto &actor : m_Actors) {
+			// Render Meshes
 			auto meshComp = actor->GetComponent<StaticMeshComponent>();
 			if (meshComp) {
-				meshComp->Render(shader);
+				meshComp->Render(shader, mode); // Pass shader and mode
+			}
+			// Collect Billboards
+			auto actorBillboards = actor->GetComponentsByClass<BillboardComponent>();
+			billboards.insert(billboards.end(), actorBillboards.begin(), actorBillboards.end());
+		}
+
+		// --- Render Billboards ---
+		// Don't render billboards in wireframe mode
+		if (mode != RenderMode::Wireframe) {
+			for (BillboardComponent *billboard : billboards) {
+				if (billboard) {
+					billboard->Render(shader, viewMatrix, mode); // Pass shader, view matrix, and mode
+				}
 			}
 		}
 	}

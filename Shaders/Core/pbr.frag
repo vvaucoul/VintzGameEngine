@@ -19,13 +19,11 @@ in vec4 FragPosLightSpace; // Fragment position in light space
 // ============================================================================
 uniform sampler2D u_AlbedoMap;    // Texture unit 0: Albedo (Base Color)
 uniform sampler2D u_NormalMap;    // Texture unit 1: Normal Map
-// uniform sampler2D u_ORMMap;    // Texture unit 2: Occlusion, Roughness, Metallic (not used)
 uniform sampler2D u_AOMap;        // Texture unit 3: Ambient Occlusion (optional)
 uniform sampler2D shadowMap;      // Texture unit 4: Shadow Map
 
 uniform int u_HasAlbedoMap;       // 1 if albedo map is used
 uniform int u_HasNormalMap;       // 1 if normal map is used
-// uniform int u_HasORMMap;      // 1 if ORM map is used (not used)
 uniform int u_HasAOMap;           // 1 if AO map is used
 
 uniform vec3 u_AlbedoColor;       // Fallback albedo color
@@ -266,8 +264,13 @@ void main() {
 	// MATERIAL PROPERTY FETCH
 	// ------------------------------------------------------------------------
 	vec3 albedo = u_AlbedoColor;
+	float alpha = 1.0; // Default alpha
+
 	if (u_HasAlbedoMap == 1) {
-		albedo = texture(u_AlbedoMap, TexCoords).rgb;
+		vec4 albedoSample = texture(u_AlbedoMap, TexCoords);
+		albedo = albedoSample.rgb;
+		alpha  = albedoSample.a; // Get alpha from texture
+
 		// Gamma correct if texture is sRGB
 		albedo = pow(albedo, vec3(2.2));
 	}
@@ -330,7 +333,14 @@ void main() {
 	// ------------------------------------------------------------------------
 	// OUTPUT (HDR, NO GAMMA CORRECTION HERE)
 	// ------------------------------------------------------------------------
-	FragColor = vec4(color, 1.0);
+
+	// Discard fragment if alpha is very low (adjust threshold as needed)
+	// This is crucial for sharp transparency cutouts like billboards
+	if (alpha < 0.1) {
+		discard;
+	}
+
+	FragColor = vec4(color, alpha);
 
 	// ------------------------------------------------------------------------
 	// DEBUG OUTPUTS (UNCOMMENT TO VISUALIZE)

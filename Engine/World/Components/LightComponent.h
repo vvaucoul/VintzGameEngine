@@ -1,23 +1,18 @@
 #pragma once
 
-#include "World/ActorComponent.h"
+#include "Renderer/Shader.h"				 // For SetupUniforms signature
+#include "World/Components/SceneComponent.h" // Include SceneComponent
 #include <glm/glm.hpp>
 
-// Forward declaration
 namespace Engine {
-	class Shader;
-}
 
-namespace Engine {
+	class Actor;
 
 	/**
 	 * @class LightComponent
-	 * @brief Base class for all light types in the scene.
-	 *
-	 * Inherits from ActorComponent and provides common properties like color and intensity.
-	 * Derived classes must implement the SetupUniforms method.
+	 * @brief Base class for all light types. Inherits SceneComponent for transform.
 	 */
-	class LightComponent : public ActorComponent {
+	class LightComponent : public SceneComponent { // Inherit from SceneComponent
 	public:
 		/**
 		 * @brief Constructor.
@@ -25,12 +20,16 @@ namespace Engine {
 		 * @param color The color of the light.
 		 * @param intensity The brightness of the light.
 		 */
-		LightComponent(Actor *owner, const glm::vec3 &color = glm::vec3(1.0f), float intensity = 1.0f);
+		LightComponent(Actor *owner, const glm::vec3 &color = {1.0f, 1.0f, 1.0f}, float intensity = 1.0f);
+
+		~LightComponent() override = default;
 
 		/**
-		 * @brief Virtual destructor.
+		 * @brief Pure virtual function to set up light-specific uniforms in a shader.
+		 * @param shader The shader to set uniforms for.
+		 * @param index The index of the light (for arrays like point/spot lights).
 		 */
-		virtual ~LightComponent() = default;
+		virtual void SetupUniforms(Shader &shader, int index) const = 0;
 
 		// --- Getters ---
 		const glm::vec3 &GetColor() const { return m_Color; }
@@ -40,16 +39,11 @@ namespace Engine {
 		void SetColor(const glm::vec3 &color) { m_Color = color; }
 		void SetIntensity(float intensity) { m_Intensity = intensity; }
 
-		/**
-		 * @brief Pure virtual function to set up light-specific uniforms in a shader.
-		 * @param shader The shader to set uniforms for.
-		 * @param index The index of the light (for arrays like point/spot lights).
-		 */
-		virtual void SetupUniforms(Shader &shader, int index) const = 0;
-
 	protected:
 		glm::vec3 m_Color;
 		float m_Intensity;
+
+		// Position and Rotation are now handled by the base SceneComponent
 	};
 
 } // namespace Engine

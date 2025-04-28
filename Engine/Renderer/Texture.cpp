@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 12:00:38 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 11:12:30 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 11:04:06 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,17 +25,32 @@ namespace Engine {
 			glGenTextures(1, &m_RendererID);
 			glBindTexture(GL_TEXTURE_2D, m_RendererID);
 
-			GLenum format = GL_RGB;
-			if (m_Channels == 4)
-				format = GL_RGBA;
+			GLenum internalFormat = GL_RGB; // Format stored on GPU
+			GLenum dataFormat	  = GL_RGB; // Format of input data
+			if (m_Channels == 4) {
+				internalFormat = GL_RGBA;
+				dataFormat	   = GL_RGBA;
+			} else if (m_Channels == 3) {
+				internalFormat = GL_RGB;
+				dataFormat	   = GL_RGB;
+			} else if (m_Channels == 1) {
+				internalFormat = GL_RED; // Use GL_RED for single channel (grayscale)
+				dataFormat	   = GL_RED;
+			} else {
+				std::cerr << "Warning: Unsupported number of channels (" << m_Channels << ") for texture: " << path << std::endl;
+				// Default to RGB, might look wrong
+			}
 
-			glTexImage2D(GL_TEXTURE_2D, 0, format, m_Width, m_Height, 0, format, GL_UNSIGNED_BYTE, data);
+			// Use internalFormat for the 3rd argument (how GPU stores it)
+			// Use dataFormat for the 7th argument (format of the 'data' pointer)
+			glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, m_Width, m_Height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
 			glGenerateMipmap(GL_TEXTURE_2D);
 
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+			// Use GL_CLAMP_TO_EDGE for billboards usually, unless repeating is desired
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 			stbi_image_free(data);
 		} else {

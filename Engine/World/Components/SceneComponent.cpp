@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:28:15 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 12:04:49 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 10:49:41 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -105,6 +105,22 @@ namespace Engine {
 		m_Position = translation;
 		m_Scale	   = scale;
 		m_Rotation = glm::degrees(glm::eulerAngles(orientation));
+	}
+
+	glm::vec3 SceneComponent::GetForwardVector() const {
+		// The forward vector (+X) is the first column of the world rotation matrix.
+		// We extract it from the world transform matrix and normalize it to remove scaling.
+		return glm::normalize(glm::vec3(GetWorldTransform()[0]));
+	}
+
+	glm::vec3 SceneComponent::GetRightVector() const {
+		// The right vector (+Y) is the second column of the world rotation matrix.
+		return glm::normalize(glm::vec3(GetWorldTransform()[1]));
+	}
+
+	glm::vec3 SceneComponent::GetUpVector() const {
+		// The up vector (+Z) is the third column of the world rotation matrix.
+		return glm::normalize(glm::vec3(GetWorldTransform()[2]));
 	}
 
 } // namespace Engine

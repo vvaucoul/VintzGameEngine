@@ -6,13 +6,13 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/27 00:49:21 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 01:43:02 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 10:19:00 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Model.h"
 #include "Mesh.h"
-#include "Renderer/MaterialPBR.h"
+#include "Renderer/Materials/MaterialPBR.h"
 #include "Renderer/Shader.h"
 #include "Renderer/Texture.h"
 

@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:19:09 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 23:27:21 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 11:28:06 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,10 +15,10 @@
 
 #include "Core/Application.h"
 #include "Renderer/Camera.h"
-#include "Renderer/MaterialPBR.h"
+#include "Renderer/Materials/MaterialPBR.h"
 #include "Renderer/Model.h"
 #include "Renderer/PostProcessor.h"
-#include "Renderer/Primitives.h"
+#include "Renderer/Primitives/Primitives.h"
 #include "Renderer/Shader.h"
 #include "Renderer/ShadowMap.h"
 #include "Renderer/UniformBuffer.h"
@@ -48,28 +48,31 @@
 #include <stdexcept>
 #include <vector>
 
+#include "Renderer/Mesh.h" // Include Mesh for s_PrimitiveMeshes type
+
 namespace Engine {
 
-	// Static variables for the application
-	static GLFWwindow *s_Window							  = nullptr;
-	static Camera *s_Camera								  = nullptr;
-	static Shader *s_Shader								  = nullptr;
-	static UniformBuffer *s_UBO							  = nullptr;
-	static World *s_World								  = nullptr;
-	static std::unique_ptr<PostProcessor> s_PostProcessor = nullptr;
-	static std::unique_ptr<Engine::ShadowMap> s_ShadowMap = nullptr;
-	static std::unique_ptr<Engine::Shader> s_DepthShader  = nullptr;
+	// Define static members
+	GLFWwindow *s_Window = nullptr;
+	Camera *s_Camera	 = nullptr;
+	// Shader *s_Shader								  = nullptr; // Replaced by specific shaders
+	UniformBuffer *s_UBO						   = nullptr;
+	World *s_World								   = nullptr;
+	std::unique_ptr<PostProcessor> s_PostProcessor = nullptr;
+	std::unique_ptr<Engine::ShadowMap> s_ShadowMap = nullptr;
+	std::unique_ptr<Engine::Shader> s_DepthShader  = nullptr;
+	std::vector<std::unique_ptr<Mesh>> s_PrimitiveMeshes;
+	std::vector<std::unique_ptr<DynamicModule>> s_Plugins;
+	bool s_FirstMouse	  = true;
+	float s_LastX		  = 0.0f;
+	float s_LastY		  = 0.0f;
+	bool s_IsCameraActive = false;
 
-	// Store primitive meshes to keep them alive
-	static std::vector<std::unique_ptr<Mesh>> s_PrimitiveMeshes;
-	// Add: storage for loaded plugins
-	static std::vector<std::unique_ptr<DynamicModule>> s_Plugins;
-
-	// Static variables for mouse input handling
-	static bool s_FirstMouse	 = true;
-	static float s_LastX		 = 0.0f;
-	static float s_LastY		 = 0.0f;
-	static bool s_IsCameraActive = false;
+	// Define new static members
+	Shader *Application::s_PBRShader			= nullptr;
+	Shader *Application::s_UnlitShader			= nullptr;
+	Shader *Application::s_WireframeShader		= nullptr;
+	RenderMode Application::s_CurrentRenderMode = RenderMode::Default;
 
 	static void FramebufferSizeCallback([[maybe_unused]] GLFWwindow *window, int width, int height) {
 		glViewport(0, 0, width, height);
@@ -177,15 +180,20 @@ namespace Engine {
 			exit(EXIT_FAILURE);
 		}
 		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_MULTISAMPLE); // Enable MSAA
+		glEnable(GL_MULTISAMPLE);						   // Enable MSAA
+		glEnable(GL_BLEND);								   // Enable blending globally (needed for billboards/transparency)
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Standard alpha blending
 
 		// Camera
 		s_Camera = new Camera({0.0f, 2.0f, 8.0f}, 45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
 
-		// Shader + UBO - Load PBR Shaders
-		// Update paths to Core directory
-		s_Shader = new Shader("Shaders/Core/pbr.vert", "Shaders/Core/pbr.frag");
-		s_UBO	 = new UniformBuffer(sizeof(glm::mat4) * 2, 0);
+		// --- Load Shaders ---
+		s_PBRShader		  = new Shader("Shaders/Core/pbr.vert", "Shaders/Core/pbr.frag");
+		s_UnlitShader	  = new Shader("Shaders/Core/unlit.vert", "Shaders/Core/unlit.frag");
+		s_WireframeShader = new Shader("Shaders/Core/wireframe.vert", "Shaders/Core/wireframe.frag");
+		s_DepthShader	  = std::make_unique<Engine::Shader>("Shaders/Core/depth.vert", "Shaders/Core/depth.frag");
+
+		s_UBO = new UniformBuffer(sizeof(glm::mat4) * 2, 0);
 
 		// Initialize PostProcessor
 		s_PostProcessor = std::make_unique<Engine::PostProcessor>(windowWidth, windowHeight);
@@ -305,6 +313,13 @@ namespace Engine {
 		bulb.AddComponent<PointLightComponent>(glm::vec3(0.3f, 0.8f, 1.0f), 2.0f); // Default attenuation used
 		bulb.GetComponentsByClass<PointLightComponent>()[0]->SetIntensity(8.0f);   // Set intensity
 
+		auto &spotLight = s_World->SpawnActor();
+		spotLight.GetRootComponent()->SetPosition({3.0f, 2.0f, 1.0f});
+		spotLight.GetRootComponent()->SetRotation({-30.0f, -60.0f, 0.0f});
+		// Use the SpotLightComponent constructor directly
+		spotLight.AddComponent<SpotLightComponent>(glm::vec3(1.0f, 0.8f, 0.2f), 2.5f, 12.5f, 17.5f); // Default attenuation used
+		spotLight.GetComponentsByClass<SpotLightComponent>()[0]->SetIntensity(20.0f);				 // Set intensity
+
 		// Spot Light (Torch)
 		auto &torch = s_World->SpawnActor();
 		torch.GetRootComponent()->SetPosition({2.0f, 1.5f, 3.0f});
@@ -329,10 +344,11 @@ namespace Engine {
 		float lastFrame = 0.0f;
 		while (!glfwWindowShouldClose(s_Window)) {
 			float current = float(glfwGetTime());
-			float delta	  = current - lastFrame; // Use 'delta' consistently
+			float delta	  = current - lastFrame;
 			lastFrame	  = current;
 
-			// Process keyboard input regardless of mouse state
+			// --- Input Processing ---
+			// Keyboard movement
 			bool forward  = glfwGetKey(s_Window, GLFW_KEY_W) == GLFW_PRESS;
 			bool backward = glfwGetKey(s_Window, GLFW_KEY_S) == GLFW_PRESS;
 			bool left	  = glfwGetKey(s_Window, GLFW_KEY_A) == GLFW_PRESS;
@@ -342,19 +358,47 @@ namespace Engine {
 			if (s_Camera) {
 				s_Camera->ProcessKeyboard(delta, forward, backward, left, right, up, down);
 			}
-			// Note: Mouse input (rotation) is handled in MouseCallback, which already checks s_IsCameraActive
+			// Note: Mouse input (rotation) is handled in MouseCallback
 
-			// Clear buffers (moved inside PostProcessor::Render or done before it)
-			// glClearColor(0.05f, 0.05f, 0.08f, 1.0f);
-			// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clearing is now handled by PostProcessor stages
+			// Render Mode Switching
+			if (glfwGetKey(s_Window, GLFW_KEY_F1) == GLFW_PRESS) {
+				s_CurrentRenderMode = RenderMode::Wireframe;
+			} else if (glfwGetKey(s_Window, GLFW_KEY_F2) == GLFW_PRESS) {
+				s_CurrentRenderMode = RenderMode::Unlit;
+			} else if (glfwGetKey(s_Window, GLFW_KEY_F3) == GLFW_PRESS) {
+				s_CurrentRenderMode = RenderMode::Default;
+			}
+
+			// --- Camera Processing ---
+			// REMOVE MOUSE HANDLING LOGIC FROM HERE - It's handled in MouseCallback
+			// if (!s_IsCameraActive) {
+			// 	// s_FirstMouse = true; // No longer needed here, handled in MouseButtonCallback
+			// 	return;
+			// }
+
+			// if (s_FirstMouse) {
+			// 	s_LastX		 = float(xpos);
+			// 	s_LastY		 = float(ypos);
+			// 	s_FirstMouse = false;
+			// 	return;
+			// }
+			// float dx = float(xpos) - s_LastX;
+			// float dy = s_LastY - float(ypos); // reversed since y-coordinates go from bottom to top
+			// s_LastX	 = float(xpos);
+			// s_LastY	 = float(ypos);
+
+			// if (s_Camera) {
+			// 	s_Camera->ProcessMouseMovement(dx, dy);
+			// }
 
 			// Update UBO view & projection matrices
 			glm::mat4 proj = s_Camera->GetProjectionMatrix();
 			glm::mat4 view = s_Camera->GetViewMatrix();
 			s_UBO->SetData(0, sizeof(glm::mat4), &proj[0][0]);
-			s_UBO->SetData(sizeof(glm::mat4), sizeof(glm::mat4), &view[0][0]); // Offset by proj size
+			s_UBO->SetData(sizeof(glm::mat4), sizeof(glm::mat4), &view[0][0]);
 
 			// --- Shadow Mapping Pass ---
+			// (Shadow mapping always uses the depth shader, unaffected by render mode)
 			// 1) Compute light space matrix based on the directional light
 			glm::vec3 lightDir = glm::vec3(-0.2f, -1.0f, -0.3f); // Default direction
 			auto sunActor	   = std::find_if(
@@ -383,32 +427,45 @@ namespace Engine {
 			glfwGetFramebufferSize(s_Window, &display_w, &display_h);
 			glViewport(0, 0, display_w, display_h);
 
-			glClearColor(0.05f, 0.05f, 0.08f, 1.0f); // Clear default framebuffer
+			// --- Main Rendering Pass ---
+			// Reset viewport and clear
+			glClearColor(0.05f, 0.05f, 0.08f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			glEnable(GL_DEPTH_TEST); // Ensure depth test is enabled
+			glEnable(GL_DEPTH_TEST);
 
-			s_Shader->Bind(); // Bind PBR shader
-			if (s_Camera) {
-				s_Shader->SetUniformVec3("u_ViewPos", s_Camera->GetPosition());
+			// Select Shader and Set Polygon Mode
+			Shader *currentShader = s_PBRShader;
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+			if (s_CurrentRenderMode == RenderMode::Unlit) {
+				currentShader = s_UnlitShader;
+			} else if (s_CurrentRenderMode == RenderMode::Wireframe) {
+				currentShader = s_WireframeShader;
+				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 			}
-			// UBO is already updated
 
-			// Bind shadow map for reading
-			s_ShadowMap->BindForReading(GL_TEXTURE4);
-			s_Shader->SetUniformInt("shadowMap", 4);
-			s_Shader->SetUniformMat4("lightSpaceMatrix", s_ShadowMap->GetLightSpaceMatrix());
+			currentShader->Bind();
 
-			// Tick and Render the world using static variables
+			// Set common uniforms
+			if (s_CurrentRenderMode == RenderMode::Default && s_Camera) {
+				currentShader->SetUniformVec3("u_ViewPos", s_Camera->GetPosition());
+				s_ShadowMap->BindForReading(GL_TEXTURE4);
+				currentShader->SetUniformInt("shadowMap", 4);
+				currentShader->SetUniformMat4("lightSpaceMatrix", s_ShadowMap->GetLightSpaceMatrix());
+			}
+
+			// Tick and Render the world
 			s_World->Tick(delta);
-			s_World->Render(*s_Shader); // Render world directly
+			s_World->Render(*currentShader, view, s_CurrentRenderMode);
 
-			// Reset active texture unit (good practice)
+			// Restore polygon mode
+			if (s_CurrentRenderMode == RenderMode::Wireframe) {
+				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			}
+
 			glActiveTexture(GL_TEXTURE0);
-
 			glfwSwapBuffers(s_Window);
 			glfwPollEvents();
-
-			// exit(0);
 		}
 	}
 
@@ -422,7 +479,10 @@ namespace Engine {
 		s_DepthShader.reset();	 // Release Depth Shader
 		delete s_World;
 		delete s_UBO;
-		delete s_Shader;
+		// Delete all shaders
+		delete s_PBRShader;
+		delete s_UnlitShader;
+		delete s_WireframeShader;
 		delete s_Camera;
 		s_PrimitiveMeshes.clear(); // Release primitive meshes
 		glfwDestroyWindow(s_Window);

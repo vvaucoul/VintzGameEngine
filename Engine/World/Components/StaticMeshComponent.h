@@ -6,12 +6,14 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:14:42 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 22:57:53 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 11:27:30 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
+#include "Core/Application.h"					// Include Application for RenderMode enum
+#include "Renderer/Materials/DefaultMaterial.h" // Include default material getter
 #include "World/ActorComponent.h"
 #include <glm/glm.hpp>
 #include <memory>
@@ -29,7 +31,7 @@ namespace Engine {
 	 * @brief Component for rendering static meshes or models.
 	 *
 	 * - Can render a primitive Mesh (externally owned) or a loaded Model (owned).
-	 * - Supports PBR materials.
+	 * - Always has a PBR material (defaults if none provided).
 	 */
 	class StaticMeshComponent : public ActorComponent {
 	public:
@@ -42,9 +44,10 @@ namespace Engine {
 
 		/**
 		 * @brief Construct with a loaded Model from file (ownership is internal).
+		 * Uses the default material if `material` is nullptr.
 		 * @param owner Owning Actor.
 		 * @param objPath Path to model file (e.g. .obj).
-		 * @param material Optional PBR material.
+		 * @param material Optional PBR material. If nullptr, the default material is used.
 		 */
 		StaticMeshComponent(Actor *owner, const std::string &objPath, std::shared_ptr<MaterialPBR> material = nullptr);
 
@@ -52,10 +55,11 @@ namespace Engine {
 		~StaticMeshComponent() override;
 
 		/**
-		 * @brief Render the mesh/model with the given shader.
+		 * @brief Render the mesh/model with the given shader and mode.
 		 * @param shader Shader to use for rendering.
+		 * @param mode The current rendering mode.
 		 */
-		void Render(Shader &shader);
+		void Render(Shader &shader, RenderMode mode);
 
 		/**
 		 * @brief Render only depth (for shadow mapping, etc).

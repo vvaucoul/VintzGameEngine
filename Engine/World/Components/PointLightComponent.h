@@ -6,17 +6,18 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 20:26:02 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 23:26:48 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 10:47:37 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
-#include "LightComponent.h" // Include the new base class
+#include "World/Components/BillboardComponent.h" // Added include
+#include "World/Components/LightComponent.h"
 
 namespace Engine {
 
-	class Shader; // Forward declare Shader
+	class Actor;
 
 	/**
 	 * @class PointLightComponent
@@ -48,6 +49,7 @@ namespace Engine {
 							float linear			= 0.09f, // Default attenuation
 							float quadratic			= 0.032f // Default attenuation
 		);
+		~PointLightComponent() override = default;
 
 		/**
 		 * @brief Sets up the point light uniforms in the shader array.
@@ -83,6 +85,7 @@ namespace Engine {
 		float m_Constant;
 		float m_Linear;
 		float m_Quadratic;
+		BillboardComponent *m_Billboard = nullptr; ///< Billboard for editor/debug visualization.
 	};
 
 } // namespace Engine

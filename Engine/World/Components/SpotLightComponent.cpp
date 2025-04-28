@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 20:26:31 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 01:51:39 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 10:48:05 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,19 +22,20 @@
 namespace Engine {
 
 	SpotLightComponent::SpotLightComponent(Actor *owner, const glm::vec3 &color, float intensity, float cutOff, float outerCutOff, float constant, float linear, float quadratic)
-		: LightComponent(owner, color, intensity), // Call base class constructor
-		  m_CutOff(cutOff),
-		  m_OuterCutOff(outerCutOff),
-		  m_Constant(constant),
-		  m_Linear(linear),
-		  m_Quadratic(quadratic) {
+		: PointLightComponent(owner, color, intensity, constant, linear, quadratic), // Call base constructor
+		  m_CutOff(cutOff),															 // Corrected member name from m_InnerCutOff
+		  m_OuterCutOff(outerCutOff) {
+		// Add billboard component to the owner actor
+		if (owner) {
+			// Use SpotLight icon
+			m_Billboard = &owner->AddComponent<BillboardComponent>("assets/billboards/Billboard_SpotLight.png", glm::vec2{0.5f, 0.5f});
+		}
 	}
 
 	glm::vec3 SpotLightComponent::GetDirection() const {
-		// Calculate direction based on the owning actor's rotation
-		// Assuming default direction is -Z (forward)
-		glm::quat rotation = GetOwner()->GetRootComponent()->GetWorldRotationQuat();
-		return glm::normalize(rotation * glm::vec3(0.0f, 0.0f, -1.0f));
+		// Direction is the forward vector of the component's transform
+		// This assumes SpotLightComponent (or its base PointLightComponent) inherits SceneComponent
+		return GetForwardVector();
 	}
 
 	void SpotLightComponent::SetupUniforms(Shader &shader, int index) const {

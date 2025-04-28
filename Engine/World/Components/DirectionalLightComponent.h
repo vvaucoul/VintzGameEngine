@@ -6,13 +6,14 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 20:25:42 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 01:51:39 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 10:47:37 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
-#include "LightComponent.h" // Include the new base class
+#include "LightComponent.h"						 // Include the new base class
+#include "World/Components/BillboardComponent.h" // Added include
 
 namespace Engine {
 
@@ -28,7 +29,8 @@ namespace Engine {
 		 * @param color The color of the light. Default is white.
 		 * @param intensity The brightness of the light. Default is 1.0.
 		 */
-		DirectionalLightComponent(Actor *owner, const glm::vec3 &color = glm::vec3(1.0f), float intensity = 1.0f);
+		DirectionalLightComponent(Actor *owner, const glm::vec3 &color = {1.0f, 1.0f, 1.0f}, float intensity = 1.0f);
+		~DirectionalLightComponent() override = default;
 
 		/**
 		 * @brief Sets up the directional light uniforms in the shader.
@@ -42,6 +44,9 @@ namespace Engine {
 		 * @return The normalized direction vector.
 		 */
 		glm::vec3 GetDirection() const;
+
+	private:
+		BillboardComponent *m_Billboard = nullptr; ///< Billboard for editor/debug visualization.
 
 		// Color and Intensity are now inherited from LightComponent
 	};

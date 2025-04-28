@@ -6,21 +6,24 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 20:26:23 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/27 01:51:39 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 10:47:37 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
 
-#include "LightComponent.h" // Include the new base class
+#include "World/Components/BillboardComponent.h"  // Added include
+#include "World/Components/PointLightComponent.h" // SpotLight often inherits attenuation from PointLight
 
 namespace Engine {
+
+	class Actor;
 
 	/**
 	 * @class SpotLightComponent
 	 * @brief Represents a spotlight source emitting light in a specific direction cone.
 	 */
-	class SpotLightComponent : public LightComponent { // Inherit from LightComponent
+	class SpotLightComponent : public PointLightComponent {
 	public:
 		/**
 		 * @brief Constructor.
@@ -41,6 +44,7 @@ namespace Engine {
 						   float constant		  = 1.0f,
 						   float linear			  = 0.09f,
 						   float quadratic		  = 0.032f);
+		~SpotLightComponent() override = default;
 
 		/**
 		 * @brief Sets up the spot light uniforms in the shader array.
@@ -77,6 +81,7 @@ namespace Engine {
 		float m_Constant;
 		float m_Linear;
 		float m_Quadratic;
+		BillboardComponent *m_Billboard = nullptr; ///< Billboard for editor/debug visualization.
 	};
 
 } // namespace Engine
