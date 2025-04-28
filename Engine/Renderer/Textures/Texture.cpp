@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 12:00:38 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 15:36:40 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 16:15:05 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -79,10 +79,13 @@ namespace Engine {
 
 		GLenum internalFormat = GL_RGB8, dataFormat = GL_RGB;
 		if (m_Channels == 4) {
-			internalFormat = GL_RGBA8;
+			internalFormat = GL_SRGB8_ALPHA8; // Use sRGB format for 4 channels
 			dataFormat	   = GL_RGBA;
+		} else if (m_Channels == 3) {  // Explicit check for 3 channels
+			internalFormat = GL_SRGB8; // Use sRGB format for 3 channels
+			dataFormat	   = GL_RGB;
 		} else if (m_Channels == 1) {
-			internalFormat = GL_R8;
+			internalFormat = GL_R8; // Keep linear for single channel (e.g., roughness, metallic)
 			dataFormat	   = GL_RED;
 		}
 

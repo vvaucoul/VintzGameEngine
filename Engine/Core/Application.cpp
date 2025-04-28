@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:19:09 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 13:47:55 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 17:17:46 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -194,6 +194,12 @@ namespace Engine {
 		s_WireframeShader = new Shader("Shaders/Core/wireframe.vert", "Shaders/Core/wireframe.frag");
 		s_DepthShader	  = std::make_unique<Engine::Shader>("Shaders/Core/depth.vert", "Shaders/Core/depth.frag");
 
+		if (!s_PBRShader->IsValid() || !s_UnlitShader->IsValid() || !s_WireframeShader->IsValid()) {
+			std::cerr << "[ERROR] Failed to load shaders." << std::endl;
+			glfwTerminate();
+			exit(EXIT_FAILURE);
+		}
+
 		s_UBO = new UniformBuffer(sizeof(glm::mat4) * 2, 0);
 
 		// Initialize PostProcessor
@@ -207,6 +213,12 @@ namespace Engine {
 		s_DepthShader = std::make_unique<Engine::Shader>(
 			"Shaders/Core/depth.vert",
 			"Shaders/Core/depth.frag");
+
+		if (!s_DepthShader->IsValid()) {
+			std::cerr << "[ERROR] Failed to load depth shader." << std::endl;
+			glfwTerminate();
+			exit(EXIT_FAILURE);
+		}
 
 		// World & Actors
 		s_World = new World();
@@ -243,6 +255,15 @@ namespace Engine {
 		plasticMat->metallic	= 0.05f;
 		plasticMat->roughness	= 0.4f;
 		plasticMat->ao			= 1.0f;
+
+		auto bricksMat = std::make_shared<Engine::MaterialPBR>();
+		bricksMat->SetAlbedoMap("assets/textures/bricks/Bricks_Diffuse.png");
+		bricksMat->SetNormalMap("assets/textures/bricks/Bricks_Normal.png");
+		bricksMat->roughness = 0.5f; // Medium roughness
+		bricksMat->metallic	 = 0.0f; // Non-metallic
+		bricksMat->SetAOMap("assets/textures/bricks/Bricks_AmbientOcclusion.png");
+		bricksMat->SetHeightMap("assets/textures/bricks/Bricks_Height.png");
+		bricksMat->SetSpecularMap("assets/textures/bricks/Bricks_Specular.png");
 
 		// --- Actor Setup ---
 		// Ground Plane (using Primitive) - Apply Dirt Material
@@ -298,7 +319,9 @@ namespace Engine {
 		// Primitive Cube (using Primitive) - Use Default Material
 		auto &primCubeActor = s_World->SpawnActor();
 		primCubeActor.GetRootComponent()->SetPosition({0.5f, 0.5f, -3.0f});
-		primCubeActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[5].get()).SetMaterial(GetDefaultMaterial()); // Use default
+		auto &primCubeMeshComp = primCubeActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[5].get());
+		primCubeActor.AddComponent<BillboardComponent>(); // Add billboard component (no argument)
+		primCubeMeshComp.SetMaterial(bricksMat);		  // Use bricks material
 
 		// --- Lights ---
 		// Directional Light (Sun)

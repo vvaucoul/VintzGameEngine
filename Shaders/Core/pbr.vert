@@ -1,56 +1,91 @@
 #version 450 core
 
+// ============================================================================
+// INPUT VERTEX ATTRIBUTES
+// ============================================================================
 layout(location = 0) in vec3 a_Position;
 layout(location = 1) in vec3 a_Normal;
 layout(location = 2) in vec2 a_TexCoords;
-// Assuming tangent is at location 3 if available
-// layout(location = 3) in vec3 a_Tangent;
+layout(location = 3) in vec3 a_Tangent;   // Input tangent (model space)
+layout(location = 4) in vec3 a_Bitangent; // Input bitangent (model space)
 
-out vec3 FragPos;
-out vec3 Normal;
-out vec2 TexCoords;
-out mat3 TBN;
-out vec4 FragPosLightSpace; // Added: Output for shadow calculation
+// ============================================================================
+// OUTPUTS TO FRAGMENT SHADER
+// ============================================================================
+out vec3 FragPos;           // World space position
+out vec3 Normal;            // World space normal (geometric, interpolated)
+out vec2 TexCoords;         // Texture coordinates (interpolated)
+out mat3 TBN;               // World -> Tangent space matrix (interpolated)
+out vec4 FragPosLightSpace; // Position in light's clip space (interpolated)
+out vec3 WorldTangent;      // World space tangent vector (interpolated)
+out vec3 WorldBitangent;    // World space bitangent vector (interpolated)
 
+// ============================================================================
+// UNIFORMS
+// ============================================================================
+// Camera matrices (usually bound via UBO)
 layout(std140, binding = 0) uniform Matrices {
     mat4 u_Projection;
     mat4 u_View;
 };
 
-uniform mat4 u_Model;
-uniform mat4 lightSpaceMatrix; // Added: For shadow calculation
+// Model and light matrices
+uniform mat4 u_Model;          // Model transformation matrix
+uniform mat4 lightSpaceMatrix; // Light's view-projection matrix (for shadows)
 
+// ============================================================================
+// MAIN VERTEX SHADER FUNCTION
+// ============================================================================
 void main() {
-    // Calculate world position
+    // --- Calculate World Position ---
     vec4 worldPos = u_Model * vec4(a_Position, 1.0);
     FragPos = worldPos.xyz;
 
-    // Calculate world space normal and TBN matrix
-    // Normal matrix (inverse transpose of the upper-left 3x3 model matrix)
-    // Simplification: Assume uniform scaling or no scaling, use mat3(u_Model)
+    // --- Calculate Normal Matrix ---
+    // Used to transform normals, tangents, bitangents correctly,
+    // especially with non-uniform scaling.
     mat3 normalMatrix = transpose(inverse(mat3(u_Model)));
-    Normal = normalize(normalMatrix * a_Normal);
 
-    // Calculate TBN matrix (Requires Tangent attribute)
-    // If tangents are available (location 3):
-    // vec3 T = normalize(normalMatrix * a_Tangent);
-    // vec3 N = Normal; // Already calculated
-    // vec3 B = normalize(cross(N, T)); // Calculate Bitangent
-    // TBN = mat3(T, B, N);
-    // If tangents are NOT available, create a placeholder TBN.
-    // This won't work correctly for normal mapping without tangents.
-    vec3 tangent = vec3(1.0, 0.0, 0.0); // Placeholder
-    vec3 bitangent = normalize(cross(Normal, tangent)); // Placeholder
-    tangent = normalize(cross(bitangent, Normal)); // Re-orthogonalize tangent
-    TBN = mat3(tangent, bitangent, Normal);
+    // --- Calculate World Space Normal, Tangent, Bitangent ---
+    // Transform direction vectors from model space to world space
+    vec3 N = normalize(normalMatrix * a_Normal);
+    vec3 T = normalize(normalMatrix * a_Tangent);
+    vec3 B = normalize(normalMatrix * a_Bitangent); // Transform original bitangent
 
+    // --- Orthogonalize TBN Basis (Gram-Schmidt) ---
+    // Ensure the basis vectors passed to the fragment shader are orthogonal,
+    // especially important after interpolation and potential normal mapping.
+    // 1. Keep the Normal (N) as calculated.
+    // 2. Make Tangent (T) orthogonal to Normal.
+    T = normalize(T - dot(T, N) * N);
+    // 3. Recalculate Bitangent (B) to be orthogonal to both N and T.
+    //    This also ensures the basis remains right-handed (or left-handed, consistently).
+    B = cross(N, T);
+    // Note: Depending on the original bitangent calculation (tool/importer),
+    // you might need B = cross(T, N) if the original winding order was different.
+    // Check visual results, especially with normal maps.
 
-    // Pass texture coordinates
+    // --- Pass World Space Vectors ---
+    // Pass the final, orthogonalized world-space vectors.
+    Normal = N;
+    WorldTangent = T;
+    WorldBitangent = B;
+
+    // --- Calculate TBN Matrix (World -> Tangent Space) ---
+    // This matrix is needed by the fragment shader to transform vectors
+    // (like the view direction or light direction) from world space into tangent space,
+    // primarily for parallax mapping and potentially other tangent-space effects.
+    // It's the transpose of the matrix formed by T, B, N as columns.
+    TBN = transpose(mat3(T, B, N));
+
+    // --- Pass Texture Coordinates ---
     TexCoords = a_TexCoords;
 
-    // Calculate fragment position in light space for shadow mapping
-    FragPosLightSpace = lightSpaceMatrix * worldPos; // Added
+    // --- Calculate Fragment Position in Light Space ---
+    // Used for shadow mapping calculations in the fragment shader.
+    FragPosLightSpace = lightSpaceMatrix * worldPos;
 
-    // Calculate final clip space position
+    // --- Calculate Final Clip Space Position ---
+    // The final output position required by OpenGL.
     gl_Position = u_Projection * u_View * worldPos;
 }
