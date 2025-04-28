@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:28:37 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 11:27:30 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 11:40:53 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,7 +16,7 @@
 #include "Renderer/Mesh.h"
 #include "Renderer/Model.h"
 #include "Renderer/Shader.h"
-#include "Renderer/Texture.h"
+#include "Renderer/Textures/Texture.h"
 #include "World/Actor.h"
 #include "World/Components/SceneComponent.h"
 

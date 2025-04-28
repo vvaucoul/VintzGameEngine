@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:19:09 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 11:28:06 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 11:53:07 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,7 @@
 
 #include "Core/Application.h"
 #include "Renderer/Camera.h"
+#include "Renderer/Materials/DefaultMaterial.h" // Include DefaultMaterial header
 #include "Renderer/Materials/MaterialPBR.h"
 #include "Renderer/Model.h"
 #include "Renderer/PostProcessor.h"
@@ -219,25 +220,26 @@ namespace Engine {
 		s_PrimitiveMeshes.push_back(Primitives::CreateCube());	   // Index 5 (Added primitive cube)
 
 		// --- PBR Materials ---
-		// Dirt Material for the ground plane
+		// Dirt Material for the ground plane - Load textures at native resolution
 		auto worldMaterial = std::make_shared<Engine::MaterialPBR>();
-		worldMaterial->SetAlbedoMap("assets/textures/World_Diffuse.png");
-		worldMaterial->SetNormalMap("assets/textures/World_Normal.png");
+		worldMaterial->SetAlbedoMap("assets/textures/World_Diffuse.png", 1024, 1024, ResamplingAlgorithm::Bilinear);
+		worldMaterial->SetNormalMap("assets/textures/World_Normal.png", 1024, 1024, ResamplingAlgorithm::Bilinear);
 		worldMaterial->metallic	 = 0.2f;
 		worldMaterial->roughness = 0.75f;
 		worldMaterial->ao		 = 1.0f;
 
-		// Simple Metallic Material for the sphere
+		// Simple Metallic Material for the sphere - No textures
 		auto metalMat		  = std::make_shared<Engine::MaterialPBR>();
-		metalMat->albedoColor = {0.8f, 0.8f, 0.85f}; // Light grey albedo - Corrected member name
+		metalMat->albedoColor = {0.8f, 0.8f, 0.85f};
 		metalMat->metallic	  = 0.9f;
 		metalMat->roughness	  = 0.2f;
 		metalMat->ao		  = 1.0f;
-		metalMat->specular	  = 0.5f; // Added specular property
+		metalMat->specular	  = 0.5f;
 
-		// Simple Plastic Material for cone/cylinder
-		auto plasticMat			= std::make_shared<Engine::MaterialPBR>();
-		plasticMat->albedoColor = {0.8f, 0.1f, 0.1f}; // Red albedo - Corrected member name
+		// Simple Plastic Material for cone/cylinder - Load albedo resized to 256x256 using Lanczos
+		auto plasticMat = std::make_shared<Engine::MaterialPBR>();
+		// Example: Load a dummy texture and resize it
+		plasticMat->albedoColor = {0.8f, 0.1f, 0.1f}; // Red albedo
 		plasticMat->metallic	= 0.05f;
 		plasticMat->roughness	= 0.4f;
 		plasticMat->ao			= 1.0f;
@@ -246,19 +248,19 @@ namespace Engine {
 		// Ground Plane (using Primitive) - Apply Dirt Material
 		auto &planeActor = s_World->SpawnActor();
 		planeActor.GetRootComponent()->SetPosition({0.0f, 0.0f, 0.0f});
-		planeActor.GetRootComponent()->SetScale({10.0f, 1.0f, 10.0f}); // Make plane larger
+		planeActor.GetRootComponent()->SetScale({10.0f, 1.0f, 10.0f});
 		auto &planeMeshComp = planeActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[1].get());
 		planeMeshComp.SetMaterial(worldMaterial);
 
-		// Cube (using Model)
+		// Cube (using Model) - Use Default Material
 		auto &objActor = s_World->SpawnActor();
 		objActor.GetRootComponent()->SetPosition({-3.0f, 0.5f, -2.0f});
-		objActor.AddComponent<StaticMeshComponent>("assets/models/cube.obj");
+		objActor.AddComponent<StaticMeshComponent>("assets/models/cube.obj").SetMaterial(GetDefaultMaterial()); // Use default
 
 		// Sphere (using Primitive) - Apply Metallic Material
 		auto &sphereActor = s_World->SpawnActor();
 		sphereActor.GetRootComponent()->SetPosition({0.0f, 0.75f, 0.0f});
-		sphereActor.GetRootComponent()->SetScale({0.75f, 0.75f, 0.75f}); // Slightly smaller sphere
+		sphereActor.GetRootComponent()->SetScale({0.75f, 0.75f, 0.75f});
 		auto &sphereMeshComp = sphereActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[0].get());
 		sphereMeshComp.SetMaterial(metalMat);
 
@@ -272,31 +274,31 @@ namespace Engine {
 		auto &coneActor = s_World->SpawnActor();
 		coneActor.GetRootComponent()->SetPosition({-1.5f, 0.5f, 2.5f});
 		auto &coneMeshComp = coneActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[3].get());
-		coneMeshComp.SetMaterial(plasticMat); // Use same plastic material
+		coneMeshComp.SetMaterial(plasticMat);
 
-		// Torus (using Primitive) - Default Material
+		// Torus (using Primitive) - Use Default Material
 		auto &torusActor = s_World->SpawnActor();
 		torusActor.GetRootComponent()->SetPosition({2.0f, 0.5f, 2.0f});
 		torusActor.GetRootComponent()->SetRotation({0.0f, 45.0f, 0.0f});
-		torusActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[4].get());
+		torusActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[4].get()).SetMaterial(GetDefaultMaterial()); // Use default
 
-		// Crate 1 (using Model)
+		// Crate 1 (using Model) - Use Default Material (assuming crate.obj doesn't define its own)
 		auto &crateActor1 = s_World->SpawnActor();
 		crateActor1.GetRootComponent()->SetPosition({-2.5f, 0.5f, 0.5f});
 		crateActor1.GetRootComponent()->SetRotation({0.0f, -30.0f, 0.0f});
-		crateActor1.AddComponent<StaticMeshComponent>("assets/models/crate.obj");
+		crateActor1.AddComponent<StaticMeshComponent>("assets/models/crate.obj").SetMaterial(GetDefaultMaterial()); // Use default
 
-		// Crate 2 (using Model)
+		// Crate 2 (using Model) - Use Default Material
 		auto &crateActor2 = s_World->SpawnActor();
 		crateActor2.GetRootComponent()->SetPosition({3.5f, 0.5f, 1.5f});
 		crateActor2.GetRootComponent()->SetRotation({0.0f, 60.0f, 0.0f});
-		crateActor2.GetRootComponent()->SetScale({1.2f, 1.2f, 1.2f}); // Slightly larger crate
-		crateActor2.AddComponent<StaticMeshComponent>("assets/models/crate.obj");
+		crateActor2.GetRootComponent()->SetScale({1.2f, 1.2f, 1.2f});
+		crateActor2.AddComponent<StaticMeshComponent>("assets/models/crate.obj").SetMaterial(GetDefaultMaterial()); // Use default
 
-		// Primitive Cube (using Primitive) - Default Material
+		// Primitive Cube (using Primitive) - Use Default Material
 		auto &primCubeActor = s_World->SpawnActor();
 		primCubeActor.GetRootComponent()->SetPosition({0.5f, 0.5f, -3.0f});
-		primCubeActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[5].get());
+		primCubeActor.AddComponent<StaticMeshComponent>(s_PrimitiveMeshes[5].get()).SetMaterial(GetDefaultMaterial()); // Use default
 
 		// --- Lights ---
 		// Directional Light (Sun)

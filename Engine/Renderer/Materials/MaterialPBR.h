@@ -6,13 +6,14 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 20:38:38 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 10:19:11 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 11:50:25 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #pragma once
-#include "Renderer/Texture.h"
+#include "Renderer/Textures/Texture.h" // Includes ResamplingAlgorithm enum
 #include <glm/glm.hpp>
+#include <iostream> // For error logging
 #include <memory>
 #include <string>
 
@@ -49,53 +50,89 @@ namespace Engine {
 		bool hasMetallicMap	 = false;
 		bool hasSpecularMap	 = false;
 
-		// Setters for maps (loads texture and updates flag)
-		void SetAlbedoMap(const std::string &path) {
+		// Setters for maps (loads texture with optional resizing and updates flag)
+		void SetAlbedoMap(const std::string &path, int targetWidth = 0, int targetHeight = 0, ResamplingAlgorithm algorithm = ResamplingAlgorithm::Bilinear) {
 			try {
-				albedoMap	 = std::make_shared<Texture>(path);
-				hasAlbedoMap = true;
-			} catch (...) {
+				albedoMap	 = std::make_shared<Texture>(path, targetWidth, targetHeight, algorithm);
+				hasAlbedoMap = (albedoMap && albedoMap->GetID() != 0); // Check if texture loaded successfully
+			} catch (const std::exception &e) {
+				std::cerr << "Error loading Albedo map '" << path << "': " << e.what() << std::endl;
 				hasAlbedoMap = false;
+				albedoMap	 = nullptr;
+			} catch (...) {
+				std::cerr << "Unknown error loading Albedo map '" << path << "'" << std::endl;
+				hasAlbedoMap = false;
+				albedoMap	 = nullptr;
 			}
 		}
-		void SetNormalMap(const std::string &path) {
+		void SetNormalMap(const std::string &path, int targetWidth = 0, int targetHeight = 0, ResamplingAlgorithm algorithm = ResamplingAlgorithm::Bilinear) {
 			try {
-				normalMap	 = std::make_shared<Texture>(path);
-				hasNormalMap = true;
-			} catch (...) {
+				normalMap	 = std::make_shared<Texture>(path, targetWidth, targetHeight, algorithm);
+				hasNormalMap = (normalMap && normalMap->GetID() != 0);
+			} catch (const std::exception &e) {
+				std::cerr << "Error loading Normal map '" << path << "': " << e.what() << std::endl;
 				hasNormalMap = false;
+				normalMap	 = nullptr;
+			} catch (...) {
+				std::cerr << "Unknown error loading Normal map '" << path << "'" << std::endl;
+				hasNormalMap = false;
+				normalMap	 = nullptr;
 			}
 		}
-		void SetAOMap(const std::string &path) {
+		void SetAOMap(const std::string &path, int targetWidth = 0, int targetHeight = 0, ResamplingAlgorithm algorithm = ResamplingAlgorithm::Bilinear) {
 			try {
-				aoMap	 = std::make_shared<Texture>(path);
-				hasAOMap = true;
-			} catch (...) {
+				aoMap	 = std::make_shared<Texture>(path, targetWidth, targetHeight, algorithm);
+				hasAOMap = (aoMap && aoMap->GetID() != 0);
+			} catch (const std::exception &e) {
+				std::cerr << "Error loading AO map '" << path << "': " << e.what() << std::endl;
 				hasAOMap = false;
+				aoMap	 = nullptr;
+			} catch (...) {
+				std::cerr << "Unknown error loading AO map '" << path << "'" << std::endl;
+				hasAOMap = false;
+				aoMap	 = nullptr;
 			}
 		}
-		void SetRoughnessMap(const std::string &path) {
+		void SetRoughnessMap(const std::string &path, int targetWidth = 0, int targetHeight = 0, ResamplingAlgorithm algorithm = ResamplingAlgorithm::Bilinear) {
 			try {
-				roughnessMap	= std::make_shared<Texture>(path);
-				hasRoughnessMap = true;
-			} catch (...) {
+				roughnessMap	= std::make_shared<Texture>(path, targetWidth, targetHeight, algorithm);
+				hasRoughnessMap = (roughnessMap && roughnessMap->GetID() != 0);
+			} catch (const std::exception &e) {
+				std::cerr << "Error loading Roughness map '" << path << "': " << e.what() << std::endl;
 				hasRoughnessMap = false;
+				roughnessMap	= nullptr;
+			} catch (...) {
+				std::cerr << "Unknown error loading Roughness map '" << path << "'" << std::endl;
+				hasRoughnessMap = false;
+				roughnessMap	= nullptr;
 			}
 		}
-		void SetMetallicMap(const std::string &path) {
+		void SetMetallicMap(const std::string &path, int targetWidth = 0, int targetHeight = 0, ResamplingAlgorithm algorithm = ResamplingAlgorithm::Bilinear) {
 			try {
-				metallicMap	   = std::make_shared<Texture>(path);
-				hasMetallicMap = true;
-			} catch (...) {
+				metallicMap	   = std::make_shared<Texture>(path, targetWidth, targetHeight, algorithm);
+				hasMetallicMap = (metallicMap && metallicMap->GetID() != 0);
+			} catch (const std::exception &e) {
+				std::cerr << "Error loading Metallic map '" << path << "': " << e.what() << std::endl;
 				hasMetallicMap = false;
+				metallicMap	   = nullptr;
+			} catch (...) {
+				std::cerr << "Unknown error loading Metallic map '" << path << "'" << std::endl;
+				hasMetallicMap = false;
+				metallicMap	   = nullptr;
 			}
 		}
-		void SetSpecularMap(const std::string &path) {
+		void SetSpecularMap(const std::string &path, int targetWidth = 0, int targetHeight = 0, ResamplingAlgorithm algorithm = ResamplingAlgorithm::Bilinear) {
 			try {
-				specularMap	   = std::make_shared<Texture>(path);
-				hasSpecularMap = true;
-			} catch (...) {
+				specularMap	   = std::make_shared<Texture>(path, targetWidth, targetHeight, algorithm);
+				hasSpecularMap = (specularMap && specularMap->GetID() != 0);
+			} catch (const std::exception &e) {
+				std::cerr << "Error loading Specular map '" << path << "': " << e.what() << std::endl;
 				hasSpecularMap = false;
+				specularMap	   = nullptr;
+			} catch (...) {
+				std::cerr << "Unknown error loading Specular map '" << path << "'" << std::endl;
+				hasSpecularMap = false;
+				specularMap	   = nullptr;
 			}
 		}
 	};

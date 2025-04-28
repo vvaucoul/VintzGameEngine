@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/28 10:38:16 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/28 11:27:30 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/28 11:40:53 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,7 @@
 
 #include "Core/Application.h" // Include Application for RenderMode enum
 #include "Renderer/Mesh.h"	  // Include Mesh for the quad
-#include "Renderer/Texture.h"
+#include "Renderer/Textures/Texture.h"
 #include "World/Components/SceneComponent.h"
 #include <glm/glm.hpp>
 #include <memory>
