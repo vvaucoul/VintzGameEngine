@@ -6,12 +6,13 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/27 00:49:21 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/29 00:55:25 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 10:50:28 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Model.h"
 #include "Mesh.h"
+#include "Renderer/Materials/DefaultMaterial.h"
 #include "Renderer/Materials/MaterialPBR.h"
 #include "Renderer/Shaders/Shader.h"
 #include "Renderer/Textures/Texture.h"
@@ -40,51 +41,135 @@ namespace Engine {
 	 * @param shader Shader to use for rendering.
 	 */
 	void Model::Draw(Shader &shader) const {
+		// Get the default material once outside the loop if needed
+		static std::shared_ptr<MaterialPBR> defaultMaterial = GetDefaultMaterial();
+
 		for (const auto &sub : m_SubMeshes) {
-			// Bind material textures and set uniforms if material exists
-			if (sub.material) {
-				// Albedo map or color
-				if (sub.material->hasAlbedoMap && sub.material->albedoMap) {
-					sub.material->albedoMap->Bind(0);
-					shader.SetUniformInt("u_AlbedoMap", 0);	   // Use u_ prefix
-					shader.SetUniformInt("u_HasAlbedoMap", 1); // Use u_ prefix
-				} else {
-					shader.SetUniformInt("u_HasAlbedoMap", 0);						   // Use u_ prefix
-					shader.SetUniformVec3("u_AlbedoColor", sub.material->albedoColor); // Use u_ prefix
-				}
-				// Normal map
-				if (sub.material->hasNormalMap && sub.material->normalMap) {
-					sub.material->normalMap->Bind(1);
-					shader.SetUniformInt("u_NormalMap", 1);	   // Use u_ prefix
-					shader.SetUniformInt("u_HasNormalMap", 1); // Use u_ prefix
-				} else {
-					shader.SetUniformInt("u_HasNormalMap", 0); // Use u_ prefix
-				}
-				// Ambient Occlusion map
-				if (sub.material->hasAOMap && sub.material->aoMap) {
-					// Bind AO map to texture unit 3 (as decided previously)
-					sub.material->aoMap->Bind(3);
-					shader.SetUniformInt("u_AOMap", 3);	   // Use u_ prefix and correct unit
-					shader.SetUniformInt("u_HasAOMap", 1); // Use u_ prefix and correct name
-				} else {
-					shader.SetUniformInt("u_HasAOMap", 0); // Use u_ prefix and correct name
-				}
-				// PBR factors
-				shader.SetUniformFloat("u_Metallic", sub.material->metallic);	// Use u_ prefix
-				shader.SetUniformFloat("u_Roughness", sub.material->roughness); // Use u_ prefix
-				shader.SetUniformFloat("u_AO", sub.material->ao);				// Use u_ prefix
+			// Use the submesh's material or the default material
+			const auto &material = sub.material ? sub.material : defaultMaterial;
+
+			// Bind material textures and set uniforms
+			// --- Base PBR ---
+			// Albedo (Unit 0)
+			if (material->hasAlbedoMap && material->albedoMap) {
+				material->albedoMap->Bind(0);
+				shader.SetUniformInt("u_AlbedoMap", 0);
+				shader.SetUniformInt("u_HasAlbedoMap", 1);
 			} else {
-				// Fallback to default material values
-				shader.SetUniformInt("u_HasAlbedoMap", 0);					// Use u_ prefix
-				shader.SetUniformVec3("u_AlbedoColor", {0.8f, 0.8f, 0.8f}); // Use u_ prefix
-				shader.SetUniformInt("u_HasNormalMap", 0);					// Use u_ prefix
-				shader.SetUniformInt("u_HasAOMap", 0);						// Use u_ prefix and correct name
-				shader.SetUniformFloat("u_Metallic", 0.1f);					// Use u_ prefix
-				shader.SetUniformFloat("u_Roughness", 0.8f);				// Use u_ prefix
-				shader.SetUniformFloat("u_AO", 1.0f);						// Use u_ prefix
+				shader.SetUniformInt("u_HasAlbedoMap", 0);
+				shader.SetUniformVec3("u_AlbedoColor", material->albedoColor);
 			}
+			// Normal (Unit 1)
+			if (material->hasNormalMap && material->normalMap) {
+				material->normalMap->Bind(1);
+				shader.SetUniformInt("u_NormalMap", 1);
+				shader.SetUniformInt("u_HasNormalMap", 1);
+			} else {
+				shader.SetUniformInt("u_HasNormalMap", 0);
+			}
+			// Metallic (Unit 2)
+			if (material->hasMetallicMap && material->metallicMap) {
+				material->metallicMap->Bind(2);
+				shader.SetUniformInt("u_MetallicMap", 2);
+				shader.SetUniformInt("u_HasMetallicMap", 1);
+			} else {
+				shader.SetUniformInt("u_HasMetallicMap", 0);
+				shader.SetUniformFloat("u_Metallic", material->metallic);
+			}
+			// Roughness (Unit 3)
+			if (material->hasRoughnessMap && material->roughnessMap) {
+				material->roughnessMap->Bind(3);
+				shader.SetUniformInt("u_RoughnessMap", 3);
+				shader.SetUniformInt("u_HasRoughnessMap", 1);
+			} else {
+				shader.SetUniformInt("u_HasRoughnessMap", 0);
+				shader.SetUniformFloat("u_Roughness", material->roughness);
+			}
+			// AO (Unit 4)
+			if (material->hasAOMap && material->aoMap) {
+				material->aoMap->Bind(4);
+				shader.SetUniformInt("u_AOMap", 4);
+				shader.SetUniformInt("u_HasAOMap", 1);
+			} else {
+				shader.SetUniformInt("u_HasAOMap", 0);
+				shader.SetUniformFloat("u_AO", material->ao); // Set AO factor if no map
+			}
+
+			// --- Extended Features ---
+			// Emissive (Unit 5)
+			if (material->hasEmissiveMap && material->emissiveMap) {
+				material->emissiveMap->Bind(5);
+				shader.SetUniformInt("u_EmissiveMap", 5);
+				shader.SetUniformInt("u_HasEmissiveMap", 1);
+			} else {
+				shader.SetUniformInt("u_HasEmissiveMap", 0);
+				shader.SetUniformVec3("u_EmissiveColor", material->emissiveColor);
+			}
+			// Opacity (Unit 6)
+			if (material->hasOpacityMap && material->opacityMap) {
+				material->opacityMap->Bind(6);
+				shader.SetUniformInt("u_OpacityMap", 6);
+				shader.SetUniformInt("u_HasOpacityMap", 1);
+			} else {
+				shader.SetUniformInt("u_HasOpacityMap", 0);
+				shader.SetUniformFloat("u_Opacity", material->opacity);
+			}
+			// Height/Parallax (Unit 7)
+			if (material->hasHeightMap && material->heightMap) {
+				material->heightMap->Bind(7);
+				shader.SetUniformInt("u_HeightMap", 7);
+				shader.SetUniformInt("u_HasHeightMap", 1);
+				shader.SetUniformFloat("u_ParallaxScale", material->parallaxScale);
+			} else {
+				shader.SetUniformInt("u_HasHeightMap", 0);
+				// Parallax scale is only relevant if there's a height map
+				// shader.SetUniformFloat("u_ParallaxScale", 0.0f); // Or set based on material->parallaxScale if needed without map
+			}
+			// Clearcoat (Unit 8)
+			if (material->hasClearcoatMap && material->clearcoatMap) {
+				material->clearcoatMap->Bind(8);
+				shader.SetUniformInt("u_ClearcoatMap", 8);
+				shader.SetUniformInt("u_HasClearcoatMap", 1);
+			} else {
+				shader.SetUniformInt("u_HasClearcoatMap", 0);
+			}
+			// Always set clearcoat factors
+			shader.SetUniformFloat("u_Clearcoat", material->clearcoat);
+			shader.SetUniformFloat("u_ClearcoatRoughness", material->clearcoatRoughness);
+
+			// Anisotropy (Unit 9)
+			if (material->hasAnisotropyMap && material->anisotropyMap) {
+				material->anisotropyMap->Bind(9);
+				shader.SetUniformInt("u_AnisotropyMap", 9);
+				shader.SetUniformInt("u_HasAnisotropyMap", 1);
+			} else {
+				shader.SetUniformInt("u_HasAnisotropyMap", 0);
+			}
+			// Always set anisotropy factors
+			shader.SetUniformFloat("u_Anisotropy", material->anisotropy);
+			shader.SetUniformVec3("u_AnisotropyDirection", material->anisotropyDirection);
+
+			// Subsurface (Unit 10)
+			if (material->hasSubsurfaceMap && material->subsurfaceMap) {
+				material->subsurfaceMap->Bind(10);
+				shader.SetUniformInt("u_SubsurfaceMap", 10);
+				shader.SetUniformInt("u_HasSubsurfaceMap", 1);
+			} else {
+				shader.SetUniformInt("u_HasSubsurfaceMap", 0);
+			}
+			// Always set subsurface factors
+			shader.SetUniformFloat("u_Subsurface", material->subsurface);
+			shader.SetUniformVec3("u_SubsurfaceColor", material->subsurfaceColor);
+
+			// Sheen (No specific map in shader, only factors)
+			shader.SetUniformVec3("u_SheenColor", material->sheenColor);
+			shader.SetUniformFloat("u_SheenRoughness", material->sheenRoughness);
+
 			// Draw mesh geometry
 			sub.mesh->Draw();
+
+			// Optional: Unbind textures after drawing each submesh?
+			// Generally not necessary if the next submesh rebinds or if state is reset elsewhere.
 		}
 	}
 

@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 13:24:56 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/29 00:55:25 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 10:56:00 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -86,8 +86,11 @@ namespace Engine {
 					}
 				}
 			}
-			shader.SetUniformInt("numPointLights", pointLightCount);
-			shader.SetUniformInt("numSpotLights", spotLightCount);
+			shader.SetUniformInt("u_NumPointLights", pointLightCount);
+			shader.SetUniformInt("u_NumSpotLights", spotLightCount);
+			shader.SetUniformInt("u_HasDirLight", (int)(pointLightCount > 0));
+			shader.SetUniformInt("u_HasPointLight", (int)(pointLightCount > 0));
+			shader.SetUniformInt("u_HasSpotLight", (int)(spotLightCount > 0));
 		}
 
 		// --- Render Static Meshes & Collect Billboards ---

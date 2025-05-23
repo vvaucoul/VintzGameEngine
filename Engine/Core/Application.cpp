@@ -6,7 +6,7 @@
 /*   By: vvaucoul <vvaucoul@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/04/26 11:19:09 by vvaucoul          #+#    #+#             */
-/*   Updated: 2025/04/29 01:06:39 by vvaucoul         ###   ########.fr       */
+/*   Updated: 2025/04/29 10:44:26 by vvaucoul         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -238,7 +238,8 @@ namespace Engine {
 		s_Camera = new Camera({0.0f, 2.0f, 8.0f}, 45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
 
 		// --- Load Shaders ---
-		s_PBRShader		  = new Shader("Shaders/Core/pbr.vert", "Shaders/Core/pbr.frag");
+		s_PBRShader = new Shader("Shaders/Core/Forward/forward_shading.vert", "Shaders/Core/Forward/forward_shading.frag");
+		// s_PBRShader		  = new Shader("Shaders/Core/pbr.vert", "Shaders/Core/pbr.frag");
 		s_UnlitShader	  = new Shader("Shaders/Core/unlit.vert", "Shaders/Core/unlit.frag");
 		s_WireframeShader = new Shader("Shaders/Core/wireframe.vert", "Shaders/Core/wireframe.frag");
 		s_DepthShader	  = std::make_unique<Engine::Shader>("Shaders/Core/depth.vert", "Shaders/Core/depth.frag");
